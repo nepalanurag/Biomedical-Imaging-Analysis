@@ -337,10 +337,6 @@ if page == "Segmentation Workflow":
     except Exception:
         pass
     try:
-        del covid_np
-    except Exception:
-        pass
-    try:
         del lung_np
     except Exception:
         pass
