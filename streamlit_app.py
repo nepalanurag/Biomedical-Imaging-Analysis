@@ -157,7 +157,7 @@ st.markdown(
 )
 
 # Path to sample DICOM folder (update as needed)
-dicom_dir = '/Users/anurag/Downloads/CSC821 Files/manifest-1608266677008/MIDRC-RICORD-1A/MIDRC-RICORD-1A-419639-000082/08-02-2002-NA-CT CHEST WITHOUT CONTRAST-04614/3.000000-0.625mm bone alg-26970'
+dicom_dir = '/Users/anurag/Downloads/CSC821 Files/manifest-1608266677008/MIDRC-RICORD-1A/MIDRC-RICORD-1A-419639-000082/08-02-2002-NA-CT CHEST WITHOUT CONTRAST-04614/2.000000-ROUTINE CHEST NON-CON-97100'
 
 if page == "Segmentation Workflow":
     st.header("Segmentation Workflow")
@@ -213,7 +213,7 @@ if page == "Segmentation Workflow":
     col5.metric("Total Lung Voxels", f"{stats['total_voxels']:,}")
     col6.metric("Infected Voxels", f"{stats['infected_voxels']:,}")
     col7.metric("Infection %", f"{stats['infection_percentage']:.2f}%")
-    st.success("Workflow complete! You can change the DICOM folder path in the code to try other cases.")
+    st.success("Workflow complete!")
 
 elif page == "Patient Data Analysis":
     st.header("Patient Data Analysis")
