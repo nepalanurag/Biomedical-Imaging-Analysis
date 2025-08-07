@@ -157,7 +157,7 @@ st.markdown(
 )
 
 # Path to sample DICOM folder (update as needed)
-dicom_dir = 'MIDRC-RICORD-1A/MIDRC-RICORD-1A-419639-000082/08-02-2002-NA-CT CHEST WITHOUT CONTRAST-04614/2.000000-ROUTINE CHEST NON-CON-97100'
+dicom_dir = 'MIDRC-RICORD-1A-419639-000082/08-02-2002-NA-CT CHEST WITHOUT CONTRAST-04614/2.000000-ROUTINE CHEST NON-CON-97100'
 
 if page == "Segmentation Workflow":
     st.header("Segmentation Workflow")
