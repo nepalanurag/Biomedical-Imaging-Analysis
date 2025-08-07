@@ -304,23 +304,36 @@ if page == "Segmentation Workflow":
     watershed_img = segmenter.watershed(image)
     del image
     gc.collect()
-    progress.progress(90, text="Extract Largest Region...")
-    status.info("Etract Largest Region....")
-    print("[LungSeg] Step 8: Extract largest region")
-    image = segmenter.extract_largest_region(watershed_img, input_image)
+    # Convert watershed ITK image to numpy as early as possible to free memory
+    watershed_np = itk.GetArrayViewFromImage(watershed_img)
     del watershed_img
     gc.collect()
-    # Check if the mask is empty (all zeros)
-    lung_np_tmp = itk.GetArrayViewFromImage(image)
-    if np.sum(lung_np_tmp) == 0:
+    progress.progress(90, text="Extract Largest Region...")
+    status.info("Extract Largest Region....")
+    print("[LungSeg] Step 8: Extract largest region")
+    labels, counts = np.unique(watershed_np[watershed_np != 0], return_counts=True)
+    if len(labels) == 0:
         st.warning("No lung region found in watershed output. The mask is empty. Please check your input data.")
         print("[LungSeg] WARNING: No lung region found in watershed output. The mask is empty.")
+        binary_mask = np.zeros(watershed_np.shape, dtype=np.uint8)
+    else:
+        largest_region_label = labels[np.argmax(counts)]
+        binary_mask = np.where(watershed_np == largest_region_label, 1, 0).astype(np.uint8)
+    del watershed_np
+    gc.collect()
+    # Convert back to ITK image for median filtering
+    image = itk.GetImageFromArray(binary_mask)
+    image.CopyInformation(input_image)
+    del binary_mask
+    gc.collect()
     progress.progress(90, text="Median filtering...")
     print("[LungSeg] Step 9: Median filtering")
     status.info("Median filtering...")
     image = segmenter.median_filter_binary(image, radius=5)
     gc.collect()
     lung_mask = image
+    del image
+    gc.collect()
     progress.progress(100, text="Lung segmentation complete!")
     status.success("Lung segmentation complete!")
     lung_np = itk.GetArrayViewFromImage(lung_mask)
