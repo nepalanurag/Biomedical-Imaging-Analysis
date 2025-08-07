@@ -48,74 +48,134 @@ class COVIDLungSegmentation:
         self.image_reader.Update()
         return self.image_reader.GetOutput()
 
+
+    # --- Sub-functions for COVID segmentation ---
+    def cast_to_float(self, image):
+        FloatImageType = itk.Image[itk.F, self.Dimension]
+        castFilter = itk.CastImageFilter[self.ImageType, FloatImageType].New()
+        castFilter.SetInput(image)
+        castFilter.Update()
+        return castFilter.GetOutput()
+
+    def threshold_image(self, image, lower, upper):
+        FloatImageType = itk.Image[itk.F, self.Dimension]
+        thresholdFilter = itk.BinaryThresholdImageFilter[FloatImageType, FloatImageType].New()
+        thresholdFilter.SetInput(image)
+        thresholdFilter.SetLowerThreshold(lower)
+        thresholdFilter.SetUpperThreshold(upper)
+        thresholdFilter.SetInsideValue(1)
+        thresholdFilter.SetOutsideValue(0)
+        thresholdFilter.Update()
+        return thresholdFilter.GetOutput()
+
+    def median_filter(self, image, radius=2):
+        FloatImageType = itk.Image[itk.F, self.Dimension]
+        medianFilter = itk.MedianImageFilter[FloatImageType, FloatImageType].New()
+        medianFilter.SetInput(image)
+        medianFilter.SetRadius(radius)
+        medianFilter.Update()
+        return medianFilter.GetOutput()
+
+    def cast_to_binary(self, image):
+        FloatImageType = itk.Image[itk.F, self.Dimension]
+        BinaryImageType = itk.Image[itk.UC, self.Dimension]
+        binaryCastFilter = itk.CastImageFilter[FloatImageType, BinaryImageType].New()
+        binaryCastFilter.SetInput(image)
+        binaryCastFilter.Update()
+        return binaryCastFilter.GetOutput()
+
     def segment_covid_lungs(self, lower_threshold=None, upper_threshold=None):
         lt = lower_threshold if lower_threshold is not None else self.lower_threshold
         ut = upper_threshold if upper_threshold is not None else self.upper_threshold
         input_image = self.read_dicom_series()
-        FloatImageType = itk.Image[itk.F, self.Dimension]
-        castFilter = itk.CastImageFilter[self.ImageType, FloatImageType].New()
-        castFilter.SetInput(input_image)
-        thresholdFilter = itk.BinaryThresholdImageFilter[FloatImageType, FloatImageType].New()
-        thresholdFilter.SetInput(castFilter.GetOutput())
-        thresholdFilter.SetLowerThreshold(lt)
-        thresholdFilter.SetUpperThreshold(ut)
-        thresholdFilter.SetInsideValue(1)
-        thresholdFilter.SetOutsideValue(0)
-        kernel = itk.FlatStructuringElement[self.Dimension].Ball(2)
-        medianFilter = itk.MedianImageFilter[FloatImageType, FloatImageType].New()
-        medianFilter.SetInput(thresholdFilter.GetOutput())
-        medianFilter.SetRadius(2)
-        medianFilter.Update()
-        BinaryImageType = itk.Image[itk.UC, self.Dimension]
-        binaryCastFilter = itk.CastImageFilter[FloatImageType, BinaryImageType].New()
-        binaryCastFilter.SetInput(medianFilter.GetOutput())
-        binaryCastFilter.Update()
-        return input_image, binaryCastFilter.GetOutput()
+        float_img = self.cast_to_float(input_image)
+        thresh_img = self.threshold_image(float_img, lt, ut)
+        median_img = self.median_filter(thresh_img, radius=2)
+        binary_img = self.cast_to_binary(median_img)
+        return input_image, binary_img
 
-    def segment_lungs(self, input_image):
+    # --- Sub-functions for Lung segmentation ---
+    def threshold_lung(self, float_img):
         FloatImageType = itk.Image[itk.F, self.Dimension]
-        BinaryImageType = itk.Image[itk.UC, self.Dimension]
-        castFilter = itk.CastImageFilter[self.ImageType, FloatImageType].New()
-        castFilter.SetInput(input_image)
         thresholdFilter = itk.BinaryThresholdImageFilter[FloatImageType, FloatImageType].New()
-        thresholdFilter.SetInput(castFilter.GetOutput())
+        thresholdFilter.SetInput(float_img)
         thresholdFilter.SetLowerThreshold(-950)
         thresholdFilter.SetUpperThreshold(-300)
         thresholdFilter.SetInsideValue(1)
         thresholdFilter.SetOutsideValue(0)
         thresholdFilter.Update()
+        return thresholdFilter.GetOutput()
+
+    def binary_cast(self, float_img):
+        FloatImageType = itk.Image[itk.F, self.Dimension]
+        BinaryImageType = itk.Image[itk.UC, self.Dimension]
         binaryCastFilter = itk.CastImageFilter[FloatImageType, BinaryImageType].New()
-        binaryCastFilter.SetInput(thresholdFilter.GetOutput())
+        binaryCastFilter.SetInput(float_img)
         binaryCastFilter.Update()
+        return binaryCastFilter.GetOutput()
+
+    def fill_holes(self, binary_img):
+        BinaryImageType = itk.Image[itk.UC, self.Dimension]
         holeFillFilter = itk.BinaryFillholeImageFilter[BinaryImageType].New()
-        holeFillFilter.SetInput(binaryCastFilter.GetOutput())
+        holeFillFilter.SetInput(binary_img)
         holeFillFilter.SetForegroundValue(1)
         holeFillFilter.Update()
+        return holeFillFilter.GetOutput()
+
+    def cast_for_distance(self, binary_img):
+        BinaryImageType = itk.Image[itk.UC, self.Dimension]
+        FloatImageType = itk.Image[itk.F, self.Dimension]
         castFilter2 = itk.CastImageFilter[BinaryImageType, FloatImageType].New()
-        castFilter2.SetInput(holeFillFilter.GetOutput())
+        castFilter2.SetInput(binary_img)
         castFilter2.Update()
+        return castFilter2.GetOutput()
+
+    def distance_map(self, float_img):
+        FloatImageType = itk.Image[itk.F, self.Dimension]
         distanceFilter = itk.SignedMaurerDistanceMapImageFilter[FloatImageType, FloatImageType].New()
-        distanceFilter.SetInput(castFilter2.GetOutput())
+        distanceFilter.SetInput(float_img)
         distanceFilter.SetInsideIsPositive(True)
         distanceFilter.SetUseImageSpacing(True)
         distanceFilter.Update()
-        distance_image = distanceFilter.GetOutput()
+        return distanceFilter.GetOutput()
+
+    def watershed(self, float_img):
+        FloatImageType = itk.Image[itk.F, self.Dimension]
         watershedFilter = itk.WatershedImageFilter[FloatImageType].New()
-        watershedFilter.SetInput(distance_image)
+        watershedFilter.SetInput(float_img)
         watershedFilter.SetThreshold(0.001)
         watershedFilter.SetLevel(0.01)
         watershedFilter.Update()
-        watershed_np = itk.GetArrayViewFromImage(watershedFilter.GetOutput())
+        return watershedFilter.GetOutput()
+
+    def extract_largest_region(self, watershed_img, input_image):
+        watershed_np = itk.GetArrayViewFromImage(watershed_img)
         labels, counts = np.unique(watershed_np[watershed_np != 0], return_counts=True)
         largest_region_label = labels[np.argmax(counts)]
         binary_mask = np.where(watershed_np == largest_region_label, 1, 0).astype(np.uint8)
         binary_image = itk.GetImageFromArray(binary_mask)
         binary_image.CopyInformation(input_image)
+        return binary_image
+
+    def median_filter_binary(self, binary_img, radius=5):
+        BinaryImageType = itk.Image[itk.UC, self.Dimension]
         medianFilter = itk.MedianImageFilter[BinaryImageType, BinaryImageType].New()
-        medianFilter.SetInput(binary_image)
-        medianFilter.SetRadius(5)
+        medianFilter.SetInput(binary_img)
+        medianFilter.SetRadius(radius)
         medianFilter.Update()
         return medianFilter.GetOutput()
+
+    def segment_lungs(self, input_image):
+        float_img = self.cast_to_float(input_image)
+        thresh_img = self.threshold_lung(float_img)
+        binary_img = self.binary_cast(thresh_img)
+        filled_img = self.fill_holes(binary_img)
+        float_img2 = self.cast_for_distance(filled_img)
+        dist_img = self.distance_map(float_img2)
+        watershed_img = self.watershed(dist_img)
+        largest_region = self.extract_largest_region(watershed_img, input_image)
+        median_img = self.median_filter_binary(largest_region, radius=5)
+        return median_img
 
     def quantify_infection(self, lung_mask, segmentation_mask):
         mask_array = itk.GetArrayFromImage(segmentation_mask)
