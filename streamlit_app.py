@@ -186,7 +186,72 @@ if page == "Segmentation Workflow":
 
     # Step 3: Lung Mask
     st.subheader("2. Lung Mask Segmentation")
-    lung_mask = segmenter.segment_lungs(input_image)
+    # --- Stepwise Lung Segmentation to avoid Streamlit crash ---
+    st.subheader("2. Lung Mask Segmentation")
+    progress = st.progress(0, text="Starting lung segmentation...")
+    status = st.empty()
+    FloatImageType = itk.Image[itk.F, segmenter.Dimension]
+    BinaryImageType = itk.Image[itk.UC, segmenter.Dimension]
+    # 1. Cast to float
+    status.info("Casting to float...")
+    castFilter = itk.CastImageFilter[segmenter.ImageType, FloatImageType].New()
+    castFilter.SetInput(input_image)
+    castFilter.Update()
+    progress.progress(10, text="Thresholding lung tissue...")
+    # 2. Thresholding
+    thresholdFilter = itk.BinaryThresholdImageFilter[FloatImageType, FloatImageType].New()
+    thresholdFilter.SetInput(castFilter.GetOutput())
+    thresholdFilter.SetLowerThreshold(-950)
+    thresholdFilter.SetUpperThreshold(-300)
+    thresholdFilter.SetInsideValue(1)
+    thresholdFilter.SetOutsideValue(0)
+    thresholdFilter.Update()
+    progress.progress(30, text="Converting to binary image...")
+    # 3. Convert to binary
+    binaryCastFilter = itk.CastImageFilter[FloatImageType, BinaryImageType].New()
+    binaryCastFilter.SetInput(thresholdFilter.GetOutput())
+    binaryCastFilter.Update()
+    progress.progress(45, text="Filling holes...")
+    # 4. Hole filling
+    holeFillFilter = itk.BinaryFillholeImageFilter[BinaryImageType].New()
+    holeFillFilter.SetInput(binaryCastFilter.GetOutput())
+    holeFillFilter.SetForegroundValue(1)
+    holeFillFilter.Update()
+    progress.progress(60, text="Casting for distance map...")
+    # 5. Cast for distance map
+    castFilter2 = itk.CastImageFilter[BinaryImageType, FloatImageType].New()
+    castFilter2.SetInput(holeFillFilter.GetOutput())
+    castFilter2.Update()
+    progress.progress(70, text="Computing distance map...")
+    # 6. Distance map
+    distanceFilter = itk.SignedMaurerDistanceMapImageFilter[FloatImageType, FloatImageType].New()
+    distanceFilter.SetInput(castFilter2.GetOutput())
+    distanceFilter.SetInsideIsPositive(True)
+    distanceFilter.SetUseImageSpacing(True)
+    distanceFilter.Update()
+    distance_image = distanceFilter.GetOutput()
+    progress.progress(80, text="Watershed segmentation...")
+    # 7. Watershed
+    watershedFilter = itk.WatershedImageFilter[FloatImageType].New()
+    watershedFilter.SetInput(distance_image)
+    watershedFilter.SetThreshold(0.001)
+    watershedFilter.SetLevel(0.01)
+    watershedFilter.Update()
+    watershed_np = itk.GetArrayViewFromImage(watershedFilter.GetOutput())
+    labels, counts = np.unique(watershed_np[watershed_np != 0], return_counts=True)
+    largest_region_label = labels[np.argmax(counts)]
+    binary_mask = np.where(watershed_np == largest_region_label, 1, 0).astype(np.uint8)
+    binary_image = itk.GetImageFromArray(binary_mask)
+    binary_image.CopyInformation(input_image)
+    progress.progress(90, text="Median filtering...")
+    # 8. Median filter
+    medianFilter = itk.MedianImageFilter[BinaryImageType, BinaryImageType].New()
+    medianFilter.SetInput(binary_image)
+    medianFilter.SetRadius(5)
+    medianFilter.Update()
+    lung_mask = medianFilter.GetOutput()
+    progress.progress(100, text="Lung segmentation complete!")
+    status.success("Lung segmentation complete!")
     lung_np = itk.GetArrayViewFromImage(lung_mask)
     col3, col4 = st.columns(2)
     with col3:
