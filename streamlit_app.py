@@ -1,3 +1,4 @@
+
 import streamlit as st
 import os
 import numpy as np
@@ -7,6 +8,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from io import BytesIO
 import seaborn as sns
+import gc
 
 # Helper to display matplotlib figures in Streamlit
 def st_display_fig(fig, caption=None):
@@ -254,30 +256,48 @@ if page == "Segmentation Workflow":
     FloatImageType = itk.Image[itk.F, segmenter.Dimension]
     BinaryImageType = itk.Image[itk.UC, segmenter.Dimension]
     image = input_image
+    # Step 1: Cast to float
     image = segmenter.cast_to_float(image)
+    gc.collect()
     progress.progress(10, text="Thresholding lung tissue...")
     print("[LungSeg] Step 2: Thresholding")
+    # Step 2: Thresholding
     image = segmenter.threshold_lung(image)
+    gc.collect()
     progress.progress(30, text="Converting to binary image...")
     print("[LungSeg] Step 3: Convert to binary")
+    # Step 3: Convert to binary
     image = segmenter.binary_cast(image)
+    gc.collect()
     progress.progress(45, text="Filling holes...")
     print("[LungSeg] Step 4: Hole filling")
+    # Step 4: Hole filling
     image = segmenter.fill_holes(image)
+    gc.collect()
     progress.progress(60, text="Casting for distance map...")
     print("[LungSeg] Step 5: Cast for distance map")
+    # Step 5: Cast for distance map
     image = segmenter.cast_for_distance(image)
+    gc.collect()
     progress.progress(70, text="Computing distance map...")
     print("[LungSeg] Step 6: Distance map")
+    # Step 6: Distance map
     image = segmenter.distance_map(image)
+    gc.collect()
     progress.progress(80, text="Watershed segmentation...")
     print("[LungSeg] Step 7: Watershed")
+    # Step 7: Watershed
     watershed_img = segmenter.watershed(image)
+    del image
+    gc.collect()
     print("[LungSeg] Step 8: Extract largest region")
     image = segmenter.extract_largest_region(watershed_img, input_image)
+    del watershed_img
+    gc.collect()
     progress.progress(90, text="Median filtering...")
     print("[LungSeg] Step 9: Median filtering")
     image = segmenter.median_filter_binary(image, radius=5)
+    gc.collect()
     lung_mask = image
     progress.progress(100, text="Lung segmentation complete!")
     status.success("Lung segmentation complete!")
