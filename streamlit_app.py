@@ -153,6 +153,14 @@ class COVIDLungSegmentation:
     def extract_largest_region(self, watershed_img, input_image):
         watershed_np = itk.GetArrayViewFromImage(watershed_img)
         labels, counts = np.unique(watershed_np[watershed_np != 0], return_counts=True)
+        if len(labels) == 0:
+            print("[LungSeg] WARNING: No regions found in watershed output. Returning empty mask.")
+            # Return an empty mask with the same shape as input
+            shape = watershed_np.shape
+            binary_mask = np.zeros(shape, dtype=np.uint8)
+            binary_image = itk.GetImageFromArray(binary_mask)
+            binary_image.CopyInformation(input_image)
+            return binary_image
         largest_region_label = labels[np.argmax(counts)]
         binary_mask = np.where(watershed_np == largest_region_label, 1, 0).astype(np.uint8)
         binary_image = itk.GetImageFromArray(binary_mask)
@@ -294,6 +302,11 @@ if page == "Segmentation Workflow":
     image = segmenter.extract_largest_region(watershed_img, input_image)
     del watershed_img
     gc.collect()
+    # Check if the mask is empty (all zeros)
+    lung_np_tmp = itk.GetArrayViewFromImage(image)
+    if np.sum(lung_np_tmp) == 0:
+        st.warning("No lung region found in watershed output. The mask is empty. Please check your input data.")
+        print("[LungSeg] WARNING: No lung region found in watershed output. The mask is empty.")
     progress.progress(90, text="Median filtering...")
     print("[LungSeg] Step 9: Median filtering")
     image = segmenter.median_filter_binary(image, radius=5)
