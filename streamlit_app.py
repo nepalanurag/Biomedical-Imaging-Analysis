@@ -298,6 +298,7 @@ if page == "Segmentation Workflow":
     watershed_img = segmenter.watershed(image)
     del image
     gc.collect()
+    progress.progress(90, text="Extract Largest Region...")
     print("[LungSeg] Step 8: Extract largest region")
     image = segmenter.extract_largest_region(watershed_img, input_image)
     del watershed_img
