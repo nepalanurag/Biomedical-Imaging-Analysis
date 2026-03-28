@@ -9,8 +9,15 @@ import pandas as pd
 from io import BytesIO
 import seaborn as sns
 import gc
+import psutil
 
 # Helper to display matplotlib figures in Streamlit
+# Helper to display matplotlib figures in Streamlit
+def memory_usage_mb():
+    process = psutil.Process(os.getpid())
+    mem = process.memory_info().rss / 1024 / 1024
+    return mem
+
 def st_display_fig(fig, caption=None):
     buf = BytesIO()
     fig.tight_layout()
@@ -230,9 +237,15 @@ st.markdown(
 dicom_dir = 'MIDRC-RICORD-1A-419639-000082/08-02-2002-NA-CT CHEST WITHOUT CONTRAST-04614/2.000000-ROUTINE CHEST NON-CON-97100'
 
 if page == "Segmentation Workflow":
+
     st.header("Segmentation Workflow")
     segmenter = COVIDLungSegmentation(dicom_dir)
+    mem_placeholder = st.empty()
+    def update_mem():
+        mem_placeholder.info(f"**Current memory usage:** {memory_usage_mb():.1f} MB")
+
     input_image = segmenter.read_dicom_series()
+    update_mem()
     input_np = itk.GetArrayViewFromImage(input_image)
     mid_slice = input_np.shape[0] // 2
     # Step 1 & 2: Show original and COVID mask side by side
@@ -245,6 +258,7 @@ if page == "Segmentation Workflow":
         ax1.set_title(f"Original CT Slice {mid_slice}")
         st_display_fig(fig1)
     _, covid_mask = segmenter.segment_covid_lungs()
+    update_mem()
     covid_np = itk.GetArrayViewFromImage(covid_mask)
     with col2:
         fig2, ax2 = plt.subplots()
@@ -266,37 +280,54 @@ if page == "Segmentation Workflow":
     image = input_image
     # Step 1: Cast to float
     image = segmenter.cast_to_float(image)
+    del input_image
     gc.collect()
+    update_mem()
     progress.progress(10, text="Thresholding lung tissue...")
     status.info("Thresholding lung tissue...")
     print("[LungSeg] Step 2: Thresholding")
     # Step 2: Thresholding
+    prev_image = image
     image = segmenter.threshold_lung(image)
+    del prev_image
     gc.collect()
+    update_mem()
     progress.progress(30, text="Converting to binary image...")
     status.info("Converting to binary image......")
     print("[LungSeg] Step 3: Convert to binary")
     # Step 3: Convert to binary
+    prev_image = image
     image = segmenter.binary_cast(image)
+    del prev_image
     gc.collect()
+    update_mem()
     progress.progress(45, text="Filling holes...")
     status.info("Filling holes......")
     print("[LungSeg] Step 4: Hole filling")
     # Step 4: Hole filling
+    prev_image = image
     image = segmenter.fill_holes(image)
+    del prev_image
     gc.collect()
+    update_mem()
     progress.progress(60, text="Casting for distance map...")
     status.info("Casting for distance map....")
     print("[LungSeg] Step 5: Cast for distance map")
     # Step 5: Cast for distance map
+    prev_image = image
     image = segmenter.cast_for_distance(image)
+    del prev_image
     gc.collect()
+    update_mem()
     progress.progress(70, text="Computing distance map...")
     status.info("Computing distance map....")
     print("[LungSeg] Step 6: Distance map")
     # Step 6: Distance map
+    prev_image = image
     image = segmenter.distance_map(image)
+    del prev_image
     gc.collect()
+    update_mem()
     progress.progress(80, text="Watershed segmentation...")
     status.info("Watershed segmentation...")
     print("[LungSeg] Step 7: Watershed")
@@ -304,10 +335,13 @@ if page == "Segmentation Workflow":
     watershed_img = segmenter.watershed(image)
     del image
     gc.collect()
+    update_mem()
+    st.cache_resource.clear()
     # Convert watershed ITK image to numpy as early as possible to free memory
     watershed_np = itk.GetArrayViewFromImage(watershed_img)
     del watershed_img
     gc.collect()
+    update_mem()
     progress.progress(90, text="Extract Largest Region...")
     status.info("Extract Largest Region....")
     print("[LungSeg] Step 8: Extract largest region")
@@ -323,14 +357,19 @@ if page == "Segmentation Workflow":
     gc.collect()
     # Convert back to ITK image for median filtering
     image = itk.GetImageFromArray(binary_mask)
-    image.CopyInformation(input_image)
+    image.CopyInformation(segmenter.read_dicom_series())
     del binary_mask
     gc.collect()
+    update_mem()
     progress.progress(90, text="Median filtering...")
     print("[LungSeg] Step 9: Median filtering")
     status.info("Median filtering...")
+    prev_image = image
     image = segmenter.median_filter_binary(image, radius=5)
+    del prev_image
     gc.collect()
+    update_mem()
+    st.cache_resource.clear()
     lung_mask = image
     del image
     gc.collect()
