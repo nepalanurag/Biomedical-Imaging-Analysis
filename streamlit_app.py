@@ -331,6 +331,26 @@ if page == "Segmentation Workflow":
     progress.progress(80, text="Watershed segmentation...")
     status.info("Watershed segmentation...")
     print("[LungSeg] Step 7: Watershed")
+    # Delete all images and clear cache before watershed
+    try:
+        del prev_image
+    except Exception:
+        pass
+    try:
+        del input_np
+    except Exception:
+        pass
+    try:
+        del covid_np
+    except Exception:
+        pass
+    try:
+        del lung_np
+    except Exception:
+        pass
+    gc.collect()
+    update_mem()
+    st.cache_resource.clear()
     # Step 7: Watershed
     watershed_img = segmenter.watershed(image)
     del image
