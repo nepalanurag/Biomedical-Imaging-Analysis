@@ -22,7 +22,7 @@ def st_display_fig(fig, caption=None):
     buf = BytesIO()
     fig.tight_layout()
     fig.savefig(buf, format="png", bbox_inches='tight')
-    st.image(buf.getvalue(), caption=caption, use_container_width=True)
+    st.image(buf.getvalue(), caption=caption, width="stretch")
     plt.close(fig)
 
 # --- Workflow Classes and Functions (adapted from your notebook) ---
@@ -214,7 +214,7 @@ st.set_page_config(page_title="COVID-19 Lung Segmentation Workflow", layout="wid
 st.sidebar.image(
     "https://nyulangone.org/news/sites/default/files/styles/hero/public/2020-11/nyul-fall-2020-covid-lung.jpg?h=4321480b&itok=KMcRwc0w",
     caption=" ",
-    use_container_width=True
+    width="stretch"
 )
 st.sidebar.title("Navigation")
 page = st.sidebar.radio("Go to", ["Segmentation Workflow", "Patient Data Analysis"])
