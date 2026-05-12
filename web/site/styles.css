@@ -1,0 +1,35 @@
+body { font-family: Georgia, "Times New Roman", serif; max-width: 960px; margin: 0 auto;
+       padding: 0 20px 60px; color: #222; background: #fdfdfa; line-height: 1.55; }
+header { border-bottom: 3px double #222; margin-bottom: 24px; padding-top: 12px; }
+h1 { font-size: 30px; margin: 0 0 4px; font-weight: normal; }
+.sub { color: #555; margin-top: 0; }
+h2 { font-size: 21px; font-weight: normal; border-bottom: 1px solid #ccc; padding-bottom: 4px; }
+.explainer p { max-width: 70ch; }
+.note, .fine { color: #666; font-size: 14px; }
+.thumbs { display: flex; gap: 12px; flex-wrap: wrap; }
+.thumb { border: 1px solid #999; background: #000; cursor: pointer; padding: 0; width: 150px; }
+.thumb img { width: 100%; display: block; }
+.thumb span { display: block; font-size: 13px; padding: 4px 6px; background: #fff; color: #222; text-align: left; }
+.thumb.active { outline: 3px solid #b3352b; }
+.viewer { display: flex; gap: 28px; margin-top: 24px; flex-wrap: wrap; }
+.imagebox { flex: 1 1 420px; }
+.imagebox img { width: 100%; background: #000; display: block; }
+.toggle { margin-top: 8px; }
+.toggle button { font-family: inherit; font-size: 15px; padding: 6px 14px; border: 1px solid #666;
+                 background: #fff; cursor: pointer; }
+.toggle button.active { background: #222; color: #fff; }
+.result { flex: 1 1 260px; border: 1px solid #999; padding: 16px 20px; background: #fff; align-self: flex-start; }
+.result h2 { border: none; margin: 0 0 8px; padding: 0; }
+.big { font-size: 44px; }
+.big .unit { font-size: 15px; color: #555; margin-left: 8px; }
+.ci { margin: 6px 0; font-size: 15px; }
+.cibar { position: relative; height: 10px; background: #eee; border: 1px solid #bbb; margin: 4px 0 14px; }
+#cifill { position: absolute; top: 0; bottom: 0; background: #b3352b; opacity: 0.55; }
+#cidot { position: absolute; top: -3px; width: 3px; height: 16px; background: #222; }
+.result table { border-collapse: collapse; font-size: 14px; width: 100%; }
+.result td { padding: 3px 0; border-top: 1px dotted #ccc; }
+.result td:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+.upload-result { margin-top: 12px; }
+.upload-result img { max-width: 420px; background: #000; display: block; }
+ol li { margin-bottom: 10px; max-width: 75ch; }
+a { color: #1a4f8a; }

@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>COVID lung infection on CT: segmentation demo</title>
+<meta name="description" content="Interactive demo of COVID-19 lung infection segmentation and quantification on chest CT slices.">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header>
+  <h1>COVID lung infection on CT</h1>
+  <p class="sub">Segmentation and quantification demo. Pick a slice, see the infected regions.</p>
+</header>
+
+<main>
+  <section class="explainer">
+    <p>
+      This page runs a simple, interpretable pipeline on chest CT slices from a COVID-positive patient:
+      threshold the Hounsfield units to find the lungs, threshold again to find infected-looking tissue
+      (ground glass in the -700 to -200 HU band), and report what fraction of the lung is affected.
+      No neural network, no black box. The results below are precomputed from the full 3D scan;
+      the method and its limits are described at the bottom of the page.
+    </p>
+    <p class="note">
+      Demo only, not a medical device. The scans come from the public MIDRC-RICORD-1A research dataset.
+    </p>
+  </section>
+
+  <section>
+    <h2>Sample slices</h2>
+    <div id="thumbs" class="thumbs"></div>
+  </section>
+
+  <section class="viewer">
+    <div class="imagebox">
+      <img id="mainimg" alt="CT slice">
+      <div class="toggle">
+        <button id="btn-ct" class="active">CT only</button>
+        <button id="btn-overlay">Infection overlay</button>
+      </div>
+    </div>
+    <div class="result">
+      <h2 id="r-title">Slice</h2>
+      <div class="big"><span id="r-pct">-</span><span class="unit">% of lung infected</span></div>
+      <div class="ci">95% CI <span id="r-ci">-</span></div>
+      <div class="cibar"><div id="r-cifill"></div><div id="r-cidot"></div></div>
+      <table>
+        <tr><td>Slice index</td><td id="r-slice">-</td></tr>
+        <tr><td>Lung pixels</td><td id="r-lung">-</td></tr>
+        <tr><td>Infected pixels</td><td id="r-inf">-</td></tr>
+      </table>
+      <p class="fine">Precomputed with the segmentation pipeline described below. The interval is a Wilson score interval for the infected-pixel fraction.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Try your own image</h2>
+    <p>
+      Upload a lung-window CT slice (grayscale PNG or JPEG). The page shows it and gives a
+      <strong>rough on-screen estimate</strong> by inverting the standard lung window back to
+      approximate Hounsfield units. This is approximate: there is no lung mask in the browser,
+      so treat it as a sketch, not a measurement. The four samples above carry the real segmented results.
+    </p>
+    <input type="file" id="upload" accept="image/png,image/jpeg">
+    <div id="upload-result" class="upload-result" hidden>
+      <img id="upload-img" alt="uploaded slice">
+      <p id="upload-text"></p>
+    </div>
+  </section>
+
+  <section>
+    <h2>How it works, and where it can be wrong</h2>
+    <ol>
+      <li><strong>Lung mask.</strong> Keep voxels between -950 and -300 HU, fill holes, keep the largest connected region. This is the standard cheap lung segmentation; it can leak into the bowel gas or miss collapsed lung.</li>
+      <li><strong>Infection mask.</strong> Keep voxels between -700 and -200 HU inside the lung mask, then median-filter to drop specks. This band covers ground-glass opacity, the hallmark COVID pattern on CT, but it also catches vessels, partial-volume edges, and motion blur. A threshold cannot tell those apart.</li>
+      <li><strong>Score.</strong> Infected pixels divided by lung pixels, per slice and for the whole scan. The original version of this project divided by the wrong denominator and reported values over 100%; that bug is fixed here and documented in the repo.</li>
+    </ol>
+    <p>
+      On the full scan (255 slices, one patient) the fixed method finds 9.69% of lung volume affected.
+      Full analysis, figures, and code: <a href="https://github.com/nepalanurag/covid-ct-web">github.com/nepalanurag/covid-ct-web</a>.
+    </p>
+    <p class="fine">Data: MIDRC-RICORD-1A (RSNA International COVID-19 Open Radiology Database), via The Cancer Imaging Archive, CC BY-NC 4.0. One COVID-positive chest CT series used here.</p>
+  </section>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>

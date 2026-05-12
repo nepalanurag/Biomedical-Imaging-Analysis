@@ -1,0 +1,11 @@
+# Environment used for the analysis (Python 3.12). Rebuild with:
+# python3 -m venv .venv && .venv/bin/pip install -r analysis/requirements.txt
+numpy
+scipy
+pandas
+matplotlib
+scikit-learn
+pydicom
+pylibjpeg
+pylibjpeg-libjpeg
+nbformat

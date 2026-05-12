@@ -1,0 +1,66 @@
+{
+  "subject": "MIDRC-RICORD-1A-419639-000082",
+  "series": "2.000000-ROUTINE CHEST NON-CON-97100",
+  "series_uid": "1.2.826.0.1.3680043.10.474.419639.403650391453800318566197197100",
+  "slices": 255,
+  "lung_voxels": 7043692,
+  "infected_voxels_whole_image": 1199890,
+  "infected_voxels_in_lung": 682603,
+  "pct_original_definition": 17.03,
+  "pct_fixed_definition": 9.69,
+  "repo_csv_pct": 14.71,
+  "slices_over_100_original": 36,
+  "samples": [
+    {
+      "id": 1,
+      "slice": 225,
+      "infection_pct": 29.19,
+      "ci_low": 28.39,
+      "ci_high": 30.01,
+      "lung_px": 12141,
+      "infected_px": 3544,
+      "label": "heaviest slice"
+    },
+    {
+      "id": 2,
+      "slice": 198,
+      "infection_pct": 9.13,
+      "ci_low": 8.82,
+      "ci_high": 9.44,
+      "lung_px": 32690,
+      "infected_px": 2983,
+      "label": "typical slice"
+    },
+    {
+      "id": 3,
+      "slice": 59,
+      "infection_pct": 5.41,
+      "ci_low": 5.12,
+      "ci_high": 5.71,
+      "lung_px": 22824,
+      "infected_px": 1235,
+      "label": "mild slice"
+    },
+    {
+      "id": 4,
+      "slice": 83,
+      "infection_pct": 2.56,
+      "ci_low": 2.41,
+      "ci_high": 2.71,
+      "lung_px": 43937,
+      "infected_px": 1123,
+      "label": "least affected slice"
+    }
+  ],
+  "thresholds": {
+    "lung": [
+      -950,
+      -300
+    ],
+    "infection": [
+      -700,
+      -200
+    ]
+  },
+  "note": "No trained classifier weights exist in the source project, so the demo uses these precomputed segmentation results."
+}
