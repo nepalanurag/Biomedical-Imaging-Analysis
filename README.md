@@ -2,6 +2,12 @@
 
 This project provides a complete pipeline for segmenting COVID-19 infected lung regions from DICOM images, quantifying infection percentage, and visualizing results. It includes a Streamlit web app for interactive exploration and patient data analysis.
 
+## Live demo
+
+Try it in your browser: https://covid-ct-web.vercel.app/
+
+The full demo package (analysis and the site source) lives in [`web/`](web/).
+
 ## Features
 
 - **DICOM Series Reading and Processing**: Reads DICOM series, handles series details, and converts to ITK images.
@@ -62,4 +68,4 @@ The app provides:
 
 ## License
 
-This project is for academic and research use. See LICENSE for details.
+This project is for academic and research use. For academic and research use.
