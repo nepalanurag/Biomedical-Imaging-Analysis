@@ -70,17 +70,62 @@
   </section>
 
   <section>
-    <h2>How it works, and where it can be wrong</h2>
+    <h2>How the pipeline works</h2>
+    <p>The segmentation runs in three stages, all with fixed, interpretable parameters:</p>
     <ol>
-      <li><strong>Lung mask.</strong> Keep voxels between -950 and -300 HU, fill holes, keep the largest connected region. This is the standard cheap lung segmentation; it can leak into the bowel gas or miss collapsed lung.</li>
-      <li><strong>Infection mask.</strong> Keep voxels between -700 and -200 HU inside the lung mask, then median-filter to drop specks. This band covers ground-glass opacity, the hallmark COVID pattern on CT, but it also catches vessels, partial-volume edges, and motion blur. A threshold cannot tell those apart.</li>
-      <li><strong>Score.</strong> Infected pixels divided by lung pixels, per slice and for the whole scan. The original version of this project divided by the wrong denominator and reported values over 100%; that bug is fixed here and documented in the repo.</li>
+      <li><strong>Lung mask.</strong> Keep voxels between -950 and -300 HU, fill holes, compute a
+      distance map, run a watershed split, keep the largest region, and smooth with a median
+      filter of radius 5. This is the standard cheap lung segmentation; it can leak into bowel
+      gas or miss collapsed lung.</li>
+      <li><strong>COVID lesion mask.</strong> Inside the lung mask, keep voxels between -700 and
+      -200 HU, then median-filter with radius 2 to drop specks. This band covers ground-glass
+      opacity, the hallmark COVID pattern on CT, but it also catches vessels, partial-volume
+      edges, and motion blur. A threshold cannot tell those apart.</li>
+      <li><strong>Quantification.</strong> Infection percentage = infected voxels &divide; lung
+      voxels &times; 100, per slice and for the whole scan. The original version of this project
+      divided by the wrong denominator and reported values over 100%; that bug is fixed here and
+      documented in the repo.</li>
     </ol>
+    <div class="overlays">
+      <figure>
+        <img src="samples/sample1_overlay.png" alt="Sample 1 with infection overlay">
+        <figcaption>Sample 1, infection overlay</figcaption>
+      </figure>
+      <figure>
+        <img src="samples/sample2_overlay.png" alt="Sample 2 with infection overlay">
+        <figcaption>Sample 2, infection overlay</figcaption>
+      </figure>
+      <figure>
+        <img src="samples/sample3_overlay.png" alt="Sample 3 with infection overlay">
+        <figcaption>Sample 3, infection overlay</figcaption>
+      </figure>
+      <figure>
+        <img src="samples/sample4_overlay.png" alt="Sample 4 with infection overlay">
+        <figcaption>Sample 4, infection overlay</figcaption>
+      </figure>
+    </div>
     <p>
       On the full scan (255 slices, one patient) the fixed method finds 9.69% of lung volume affected.
-      Full analysis, figures, and code: <a href="https://github.com/nepalanurag/covid-ct-web">github.com/nepalanurag/covid-ct-web</a>.
+      Full analysis, figures, and code: <a href="https://github.com/nepalanurag/Biomedical-Imaging-Analysis">github.com/nepalanurag/Biomedical-Imaging-Analysis</a>.
     </p>
     <p class="fine">Data: MIDRC-RICORD-1A (RSNA International COVID-19 Open Radiology Database), via The Cancer Imaging Archive, CC BY-NC 4.0. One COVID-positive chest CT series used here.</p>
+  </section>
+
+  <section>
+    <h2>Across patients</h2>
+    <p>
+      Infection percentages were computed for every scan series in the study set. Series reporting
+      above 100% are an artifact of the old denominator bug and are dropped, matching the original
+      analysis. That leaves 206 series from 109 patients.
+    </p>
+    <div class="statrow">
+      <div class="stat"><span class="statnum" id="st-n">-</span><span class="statlbl">series kept</span></div>
+      <div class="stat"><span class="statnum" id="st-pat">-</span><span class="statlbl">patients</span></div>
+      <div class="stat"><span class="statnum" id="st-mean">-</span><span class="statlbl">mean infection</span></div>
+      <div class="stat"><span class="statnum" id="st-med">-</span><span class="statlbl">median infection</span></div>
+    </div>
+    <canvas id="hist" width="720" height="280"></canvas>
+    <p class="fine">Distribution of infection percentage across the 206 kept series. Data: infection_quantification_by_subject.csv in the repo.</p>
   </section>
 </main>
 
