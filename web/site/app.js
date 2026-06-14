@@ -98,3 +98,89 @@
     img.src = url;
   });
 })();
+
+/* Across patients: histogram of infection percentage from the study CSV.
+   Rows with infection_percentage > 100 are dropped as outliers, as in the
+   original analysis. */
+(function () {
+  var canvas = document.getElementById("hist");
+  if (!canvas) return;
+
+  function parseCSV(text) {
+    var lines = text.trim().split(/\r?\n/);
+    var head = lines[0].split(",");
+    var ci = head.indexOf("infection_percentage");
+    var si = head.indexOf("Subject ID");
+    var vals = [], subs = {};
+    for (var i = 1; i < lines.length; i++) {
+      var p = lines[i].split(",");
+      if (p.length <= Math.max(ci, si)) continue;
+      var v = parseFloat(p[ci]);
+      if (isNaN(v) || v > 100) continue;
+      vals.push(v);
+      subs[p[si]] = true;
+    }
+    return { vals: vals, nPatients: Object.keys(subs).length };
+  }
+
+  function stats(vals) {
+    var s = vals.slice().sort(function (a, b) { return a - b; });
+    var mean = s.reduce(function (a, b) { return a + b; }, 0) / s.length;
+    var mid = s.length >> 1;
+    var median = s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
+    return { mean: mean, median: median };
+  }
+
+  function draw(vals) {
+    var NB = 20, MAXV = 100;
+    var bins = new Array(NB).fill(0);
+    vals.forEach(function (v) {
+      var b = Math.min(NB - 1, Math.floor(v / MAXV * NB));
+      bins[b]++;
+    });
+    var ctx = canvas.getContext("2d");
+    var W = canvas.width, H = canvas.height;
+    ctx.clearRect(0, 0, W, H);
+    var padL = 44, padR = 12, padT = 12, padB = 32;
+    var maxC = Math.max.apply(null, bins.concat([1]));
+    var bw = (W - padL - padR) / NB;
+    ctx.font = "11px Georgia, serif";
+    var g, yy;
+    for (g = 0; g <= 4; g++) {
+      var c = (maxC * g) / 4;
+      yy = H - padB - (c / maxC) * (H - padT - padB);
+      ctx.strokeStyle = "#e3e3e3";
+      ctx.beginPath(); ctx.moveTo(padL, yy); ctx.lineTo(W - padR, yy); ctx.stroke();
+      ctx.fillStyle = "#666";
+      ctx.fillText(String(Math.round(c)), 8, yy + 4);
+    }
+    ctx.fillStyle = "#666";
+    for (g = 0; g <= 4; g++) {
+      var xv = (MAXV * g) / 4;
+      ctx.fillText(xv + "%", padL + (g / 4) * (W - padL - padR) - 8, H - 10);
+    }
+    ctx.fillStyle = "#b3352b";
+    ctx.globalAlpha = 0.8;
+    bins.forEach(function (c, i) {
+      var h = (c / maxC) * (H - padT - padB);
+      ctx.fillRect(padL + i * bw + 1, H - padB - h, bw - 2, h);
+    });
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = "#666";
+    ctx.fillText("Infection percentage", padL, H - 24 + 14);
+  }
+
+  fetch("infection_quantification_by_subject.csv").then(function (r) { return r.text(); })
+    .then(function (t) {
+      var d = parseCSV(t);
+      var s = stats(d.vals);
+      document.getElementById("st-n").textContent = d.vals.length;
+      document.getElementById("st-pat").textContent = d.nPatients;
+      document.getElementById("st-mean").textContent = s.mean.toFixed(1) + "%";
+      document.getElementById("st-med").textContent = s.median.toFixed(1) + "%";
+      draw(d.vals);
+    })
+    .catch(function () {
+      canvas.getContext("2d").fillText("Could not load data", 20, 40);
+    });
+})();
