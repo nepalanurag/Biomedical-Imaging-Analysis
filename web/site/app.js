@@ -166,8 +166,6 @@
       ctx.fillRect(padL + i * bw + 1, H - padB - h, bw - 2, h);
     });
     ctx.globalAlpha = 1;
-    ctx.fillStyle = "#666";
-    ctx.fillText("Infection percentage", padL, H - 24 + 14);
   }
 
   fetch("infection_quantification_by_subject.csv").then(function (r) { return r.text(); })
