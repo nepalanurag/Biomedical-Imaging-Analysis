@@ -23,6 +23,8 @@ plt.rcParams.update({"font.size": 11})
 CELLS = [
  dict(md="""# COVID lung infection on CT: segmentation, quantification, and an honest error analysis
 
+## Background
+
 I rebuilt the segmentation pipeline from my earlier project
 (nepalanurag/Biomedical-Imaging-Analysis) and checked it against the real data.
 There are no trained classifier weights in that project, it was always a
@@ -33,6 +35,8 @@ the one real CT series available locally (MIDRC-RICORD-1A subject 419639-000082,
 255 axial slices). Where a method needs data I do not have, I say so and show
 the method on plainly labeled synthetic data instead.
 
+## Setup
+
 Data provenance: MIDRC-RICORD-1A is the RSNA International COVID-19 Open
 Radiology Database release 1a, 120 COVID-positive chest CT studies from four
 international sites, annotated by thoracic radiologists, distributed by The
@@ -40,7 +44,7 @@ Cancer Imaging Archive under CC BY-NC 4.0. The full 11 GB collection is not
 local; one series (255 slices) is.""",
       code=None),
 
- dict(md="""## Load the volume
+ dict(md="""## Setup: load the volume
 
 First, read the DICOM series and convert to Hounsfield units. Sorting by slice
 position matters because the files are not stored in anatomical order.""",
@@ -50,7 +54,7 @@ position matters because the files are not stored in anatomical order.""",
             "print(f'HU range: [{vol.min():.0f}, {vol.max():.0f}]')\n"
             "print(f'mean HU: {vol.mean():.1f}')")),
 
- dict(md="""## Why HU-threshold segmentation
+ dict(md="""## Method: why HU-threshold segmentation
 
 I use Hounsfield-unit thresholding instead of a neural network because the
 question here is quantification of already-visible opacities, and a threshold
@@ -75,7 +79,7 @@ is the simplest one whose failure modes I can state plainly.""",
             "print('My reimplementation lands within a few points of the repo number.')\n"
             "print('Exact match is not expected: ITK watershed+median vs my scipy approximations.')")),
 
- dict(md="""## The denominator bug, and why the fix is not optional
+ dict(md="""## Method: the denominator bug, and why the fix is not optional
 
 The original code counted infected voxels over the whole image but divided by
 lung voxels only. A fraction whose numerator and denominator come from different
@@ -98,7 +102,7 @@ is the fix; it changes the whole-scan number from 17.03% to 9.69% on this series
             "fig.tight_layout(); fig.savefig('" + TMP + "/p1.png', dpi=120)"),
       pngs=["p1.png"]),
 
- dict(md="""## Why the Wilson interval
+ dict(md="""## Method: why the Wilson interval
 
 Each slice's infection percentage is a binomial proportion over tens of
 thousands of lung pixels. The Wald interval (p +/- 1.96 se) misbehaves near 0
@@ -129,7 +133,7 @@ standard choice and needs no tuning.""",
             "fig.tight_layout(); fig.savefig('" + TMP + "/p2.png', dpi=120)"),
       pngs=["p2.png"]),
 
- dict(md="""## Sanity check: the HU histogram
+ dict(md="""## Method: sanity check with the HU histogram
 
 If the thresholds are sensible, the lung band should sit on the air-side peak
 of the histogram and the infection band should cover the shoulder between air
@@ -147,7 +151,7 @@ matches the published bands (ground glass -703 to -368 HU; consolidation above
             "fig.tight_layout(); fig.savefig('" + TMP + "/p3.png', dpi=120)"),
       pngs=["p3.png"]),
 
- dict(md="""## Error analysis: where the threshold method goes wrong
+ dict(md="""## Results: where the threshold method goes wrong
 
 Plotting the original definition against the fixed one per slice shows the bug
 is not a rare edge case: slices above the lung apices and below the diaphragm
@@ -169,7 +173,7 @@ should be read as an upper-bound-ish estimate, not a measurement.""",
             "fig.tight_layout(); fig.savefig('" + TMP + "/p4.png', dpi=120)"),
       pngs=["p4.png"]),
 
- dict(md="""## What I did not compute, and why
+ dict(md="""## Results: what I did not compute, and why
 
 Three analyses belong to a classifier study, and I do not have a classifier:
 
@@ -219,14 +223,15 @@ are on record. This plot is synthetic and proves nothing about CT.""",
             "fig.tight_layout(); fig.savefig('" + TMP + "/p5.png', dpi=120)"),
       pngs=["p5.png"]),
 
- dict(md="""## Limitations and what comes next
+ dict(md="""## Takeaway: limitations and what comes next
 
 One patient, one series, no labels. The numbers above describe this scan, not
 COVID CT in general. A real classifier study would need the full RICORD cohort
 plus COVID-negative controls, a train/validation/test split by patient (never
 by slice, or leakage inflates everything), and then the ROC, calibration, and
 Grad-CAM analyses sketched above. The fixed segmentation pipeline here is a
-solid baseline to compare such a model against, which is its honest value.""",
+solid baseline to compare such a model against, which is its honest value.
+The fixed pipeline is a solid, honest baseline: on this scan it reports 9.69% of lung volume affected, with the known failure modes stated above. It is a quantification tool for visible opacities, not a diagnostic one, and any classifier study would still need the full cohort, patient-level splits, and the ROC, calibration, and Grad-CAM analyses sketched above.""",
       code=None),
 ]
 
