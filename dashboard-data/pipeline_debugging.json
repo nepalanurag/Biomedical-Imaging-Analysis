@@ -1,0 +1,23 @@
+{
+  "source_notebook": "FIRE.ipynb",
+  "note": "Engineering trail behind the final pipeline; not clinical results.",
+  "volume_test": {
+    "subject": "MIDRC-RICORD-1A-660042-000124",
+    "volume_voxels": [
+      512,
+      512,
+      210
+    ],
+    "hu_min": -1024,
+    "hu_max": 2141,
+    "hu_mean": -404.6724231175014,
+    "hu_median": -136,
+    "isodata_threshold_hu": -436.72119140625
+  },
+  "failed_approach": {
+    "approach": "connected-components background removal on raw threshold output",
+    "failure": "ITK ConnectedComponentImageFilter 255-label limit exceeded",
+    "objects_found": 883236,
+    "series": "MIDRC-RICORD-1A-660042-000107"
+  }
+}
