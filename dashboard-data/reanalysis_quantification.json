@@ -1,0 +1,85 @@
+{
+  "source_notebook": "web/analysis/analysis.ipynb",
+  "note": "Independent reimplementation (pydicom/numpy/scipy) of the repo pipeline on one CT series, checking the repo's own numbers and fixing a denominator bug.",
+  "series": {
+    "subject": "MIDRC-RICORD-1A-419639-000082",
+    "n_slices": 255,
+    "pixels": [
+      512,
+      512
+    ],
+    "hu_range": [
+      -3024,
+      1857
+    ],
+    "hu_mean": -930.6
+  },
+  "whole_scan": {
+    "lung_voxels": 7043692,
+    "infected_voxels_whole_image": 1199890,
+    "infected_voxels_inside_lung": 682603,
+    "original_definition_pct": 17.03,
+    "repo_csv_pct": 14.71,
+    "fixed_definition_pct": 9.69
+  },
+  "per_slice": {
+    "slices_where_original_exceeds_100pct": 36,
+    "n_slices": 255,
+    "median_infection_pct_fixed": 9.13
+  },
+  "slice_samples": [
+    {
+      "slice": 225,
+      "infection_pct": 29.19,
+      "ci95": [
+        28.39,
+        30.01
+      ],
+      "note": "heaviest"
+    },
+    {
+      "slice": 198,
+      "infection_pct": 9.13,
+      "ci95": [
+        8.82,
+        9.44
+      ],
+      "note": "typical"
+    },
+    {
+      "slice": 59,
+      "infection_pct": 5.41,
+      "ci95": [
+        5.12,
+        5.71
+      ],
+      "note": "mild"
+    },
+    {
+      "slice": 83,
+      "infection_pct": 2.56,
+      "ci95": [
+        2.41,
+        2.71
+      ],
+      "note": "least affected"
+    }
+  ],
+  "denominator_bug": "Original code counted infected voxels over the whole image but divided by lung voxels only; the repo's own CSV contains a series at 117.73%. Fix: intersect the infection mask with the lung mask first.",
+  "synthetic_method_illustration": {
+    "note": "SYNTHETIC DATA ONLY - method illustration, proves nothing about CT",
+    "auc": 0.818,
+    "auc_ci95": [
+      0.774,
+      0.858
+    ],
+    "bootstrap_replicates": 2000
+  },
+  "literature_context": {
+    "note": "context only, not a target",
+    "model": "COVIDNet-CT",
+    "accuracy": 0.991,
+    "dataset": "COVIDx-CT",
+    "n_images": 104009
+  }
+}
