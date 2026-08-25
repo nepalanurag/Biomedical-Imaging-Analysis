@@ -1,0 +1,39 @@
+{
+  "source_notebook": "FINAL_PRESENTATION.ipynb",
+  "method": "Hounsfield-unit threshold segmentation with ITK: lung mask via thresholding + hole filling + distance map + watershed + median filter; infection = voxels in [-700, -200] HU inside the lung mask.",
+  "subjects": [
+    {
+      "subject": "MIDRC-RICORD-1A-419639-000082",
+      "volume_voxels": [
+        512,
+        512,
+        510
+      ],
+      "hu_min": -3024,
+      "hu_max": 2272,
+      "hu_mean": -929.7951403374766,
+      "lung_voxels": 13982295,
+      "infected_voxels": 1557816,
+      "infection_pct": 11.141346967718817
+    },
+    {
+      "subject": "MIDRC-RICORD-1A-660042-000107",
+      "series_uid": "1.2.826.0.1.3680043.10.474.660042.25679",
+      "volume_voxels": [
+        512,
+        512,
+        244
+      ],
+      "hu_min": -1024,
+      "hu_max": 1549,
+      "hu_mean": -502.6462606992878,
+      "lung_voxels": 9030300,
+      "automated_infected_voxels": 205420,
+      "automated_infection_pct": 2.274785998250335,
+      "annotation_infected_voxels": 304233,
+      "annotation_infection_pct": 3.3690242849074785,
+      "annotation_source": "MD.ai radiologist polygon labels (26,408 annotations in the label-group JSON; not in this repo)"
+    }
+  ],
+  "data_note": "DICOMs were local to the author's machine; repo contains grouped_by_subject_id.csv, infection_quantification_by_subject.csv, and one subject DICOM folder (MIDRC-RICORD-1A-419639-000082). MIDRC-RICORD-1A via The Cancer Imaging Archive, CC BY-NC 4.0."
+}
