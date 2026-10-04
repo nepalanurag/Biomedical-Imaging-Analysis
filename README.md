@@ -45,11 +45,11 @@ The app provides:
 
 ## File Structure
 
-- `streamlit_app.py` — Main Streamlit web application.
-- `segmentation.py` — Core segmentation logic (if used separately).
-- `grouped_by_subject_id.csv` — Grouped patient DICOM metadata.
-- `infection_quantification_by_subject.csv` — Infection quantification per subject.
-- `FINAL_PRESENTATION.ipynb` — Jupyter notebook with the full workflow.
+- `streamlit_app.py`: main Streamlit web application.
+- `segmentation.py`: core segmentation logic (if used separately).
+- `grouped_by_subject_id.csv`: grouped patient DICOM metadata.
+- `infection_quantification_by_subject.csv`: infection quantification per subject.
+- `FINAL_PRESENTATION.ipynb`: Jupyter notebook with the full workflow.
 
 ## Requirements
 
@@ -68,4 +68,4 @@ The app provides:
 
 ## License
 
-This project is for academic and research use. For academic and research use.
+This project is for academic and research use.

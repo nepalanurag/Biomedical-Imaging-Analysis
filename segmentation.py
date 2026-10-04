@@ -290,7 +290,9 @@ class COVIDLungSegmentation:
         lung_array= itk.GetArrayFromImage(lung_mask)
         # Calculate infection metrics
         total_voxels = np.sum(lung_array > 0)
-        infected_voxels = np.sum(mask_array > 0)
+        # count infected voxels inside the lung only, so the percentage can
+        # never exceed 100
+        infected_voxels = np.sum((mask_array > 0) & (lung_array > 0))
         infection_percentage = (infected_voxels / total_voxels) * 100
         
         return {
