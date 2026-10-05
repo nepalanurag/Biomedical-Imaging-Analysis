@@ -268,7 +268,7 @@
     <p class="fine">
       Agreement with the analyst's takeaways: the method-level points (T1&ndash;T5, T7) cannot
       be judged from overlays either way; T6 (documented disagreement modes versus
-      radiologist polygons) was partially reproduced &mdash; the model flagged the missed
+      radiologist polygons) was partially reproduced: the model flagged the missed
       consolidation and vessel misclassification but did not reproduce the partial-volume
       edge finding. Full report: <code>pipeline/data/disagreement_report_vlm.md</code> in the repo.
     </p>
@@ -289,7 +289,7 @@
       The infection band's upper edge is the dominant lever: raising it pulls dense
       consolidation into the mask, lowering it restricts the mask to ground glass. The
       lung band edges move the denominator and the mask together, so their effect is
-      smaller &mdash; except at the extreme. Setting the lung lower bound to &minus;1000
+      smaller, except at the extreme. Setting the lung lower bound to &minus;1000
       collapses the metric to 0.24%, because background padding floods the lung mask.
       That configuration is a documented failure mode, not a plausible alternative.
     </p>
