@@ -11,6 +11,12 @@
 <header>
   <h1>COVID lung infection on CT</h1>
   <p class="sub">Segmentation and quantification demo. Pick a slice, see the infected regions.</p>
+  <nav>
+    <a href="#samples">Samples</a>
+    <a href="#method">How it works</a>
+    <a href="#patients">Across patients</a>
+    <a href="#pipeline">Production pipeline</a>
+  </nav>
 </header>
 
 <main>
@@ -27,7 +33,7 @@
     </p>
   </section>
 
-  <section>
+  <section id="samples">
     <h2>Sample slices</h2>
     <div id="thumbs" class="thumbs"></div>
   </section>
@@ -69,7 +75,7 @@
     </div>
   </section>
 
-  <section>
+  <section id="method">
     <h2>How the pipeline works</h2>
     <p>The segmentation runs in three stages, all with fixed, interpretable parameters:</p>
     <ol>
@@ -111,12 +117,21 @@
     <p class="fine">Data: MIDRC-RICORD-1A (RSNA International COVID-19 Open Radiology Database), via The Cancer Imaging Archive, CC BY-NC 4.0. One COVID-positive chest CT series used here.</p>
   </section>
 
-  <section>
+  <section id="patients">
     <h2>Across patients</h2>
     <p>
       Infection percentages were computed for every scan series in the study set. Series reporting
       above 100% are an artifact of the old denominator bug and are dropped, matching the original
       analysis. That leaves 206 series from 109 patients.
+    </p>
+    <p class="note">
+      A note on the numbers: the chart below shows the legacy study table, where series above 100%
+      were dropped to match the original analysis. The repo now also carries a curated version of
+      that table (<code>infection_quantification_by_subject_curated.csv</code>): the new
+      series-eligibility rule keeps 154 axial diagnostic series and excludes 75 scout, localizer,
+      and reformat series. Four kept rows still carry values above 100% from the pre-consolidation
+      numerator; they are kept as-is and flagged for recomputation on the next refresh, not silently
+      dropped. Details in the curation panel under <a href="#pipeline">Production pipeline</a>.
     </p>
     <div class="statrow">
       <div class="stat"><span class="statnum" id="st-n">-</span><span class="statlbl">series kept</span></div>
@@ -126,6 +141,187 @@
     </div>
     <canvas id="hist" width="720" height="280"></canvas>
     <p class="fine">Distribution of infection percentage across the 206 kept series. Data: infection_quantification_by_subject.csv in the repo.</p>
+  </section>
+  <section id="pipeline">
+    <h2>Production pipeline</h2>
+    <p>
+      The method above now runs inside a production ingestion pipeline in the repo
+      (<a href="https://github.com/nepalanurag/Biomedical-Imaging-Analysis/tree/main/pipeline">pipeline/</a>).
+      It walks a DICOM tree, converts each series to NIfTI, and writes a versioned
+      Parquet manifest that every downstream step reads. Validation gates check the
+      schema contract, the de-identification pattern, and the series-eligibility rule
+      before anything is quantified. Rejected series are quarantined with a
+      machine-readable reason instead of being silently dropped, and every refresh is
+      stamped with a timestamp, code hash, and git SHA. The repo carries 30 tests,
+      DVC stages, a Dockerfile, and CI for the pipeline.
+    </p>
+    <div class="flow">
+      <div class="fbox">DICOM tree</div><span class="farrow">&rarr;</span>
+      <div class="fbox">ingest.py<span>pydicom &rarr; nibabel</span></div><span class="farrow">&rarr;</span>
+      <div class="fbox">manifest.parquet<span>contract manifest/1.0</span></div><span class="farrow">&rarr;</span>
+      <div class="fbox">validate.py<span>pandera + eligibility</span></div><span class="farrow">&rarr;</span>
+      <div class="fbox">quantify.py<span>contract results/1.0</span></div><span class="farrow">&rarr;</span>
+      <div class="fbox">refresh.py<span>versioned results</span></div>
+    </div>
+
+    <h3>Series-eligibility rule</h3>
+    <p>A series enters the analysis table only if all four of these hold:</p>
+    <ol>
+      <li>Modality is CT.</li>
+      <li>The series description does not name a localizer, scout, or topogram survey.</li>
+      <li>ImageType is ORIGINAL: no derived or secondary reformats, MIPs, or minIPs.</li>
+      <li>The acquisition geometry is axial (ImageOrientationPatient near the canonical [1,0,0,0,1,0]).</li>
+    </ol>
+    <p class="fine">
+      The rule is deliberately conservative: a series that cannot be proven axial and
+      diagnostic is rejected. A rejected series can be whitelisted explicitly with a
+      written reason, never by weakening the defaults.
+    </p>
+
+    <h3>Validation on the real series</h3>
+    <p>End-to-end run on the 255-slice RICORD series used in this demo:</p>
+    <div class="statrow">
+      <div class="stat"><span class="statnum">1</span><span class="statlbl">series checked</span></div>
+      <div class="stat"><span class="statnum">1</span><span class="statlbl">eligible</span></div>
+      <div class="stat"><span class="statnum">0</span><span class="statlbl">quarantined</span></div>
+      <div class="stat"><span class="statnum">0</span><span class="statlbl">validation failures</span></div>
+    </div>
+    <p class="fine">
+      Whole-scan result: 9.69% of lung volume infected, 95% CI [9.67, 9.71],
+      from 682,603 infected voxels out of 7,043,692 lung voxels.
+    </p>
+
+    <h3>Series curation</h3>
+    <p>
+      The eligibility rule was applied to the legacy 229-row study table. 75 series were
+      excluded as non-diagnostic, leaving 154 axial diagnostic series:
+    </p>
+    <table class="datatable">
+      <tr><th>Decision</th><th class="num">Series</th><th>Reason</th></tr>
+      <tr><td>Excluded</td><td class="num">27</td><td>coronal reformats</td></tr>
+      <tr><td>Excluded</td><td class="num">26</td><td>sagittal reformats</td></tr>
+      <tr><td>Excluded</td><td class="num">15</td><td>scout / localizer surveys</td></tr>
+      <tr><td>Excluded</td><td class="num">5</td><td>bolus-tracking (smart-prep) series</td></tr>
+      <tr><td>Excluded</td><td class="num">2</td><td>maximum-intensity projections</td></tr>
+      <tr><td>Kept, flagged</td><td class="num">4</td><td>values above 100% from the pre-consolidation numerator; kept as-is, flagged for recomputation on the next refresh</td></tr>
+      <tr><td>Kept, flagged</td><td class="num">96</td><td>uninformative series description; kept, flagged for review</td></tr>
+      <tr><td>Kept</td><td class="num">54</td><td>pass all checks clean</td></tr>
+    </table>
+    <p class="fine">
+      Curated table and curation log:
+      <code>infection_quantification_by_subject_curated.csv</code> and
+      <code>analysis/curation_log.csv</code> in the repo.
+    </p>
+
+    <h3>AI second reader</h3>
+    <p>
+      A vision model (Gemini 2.5 Flash) was shown the same four infection-overlay slices
+      as the earlier dry-run study and asked to judge four known failure modes of
+      threshold segmentation. Its reads are uncalibrated hypotheses, not ground truth,
+      and they were checked against the analyst's own written takeaways:
+    </p>
+    <div class="overlays">
+      <figure>
+        <img src="samples/vlm_slice_083.png" alt="Infection overlay, slice 83">
+        <figcaption>Slice 83</figcaption>
+      </figure>
+      <figure>
+        <img src="samples/vlm_slice_137.png" alt="Infection overlay, slice 137">
+        <figcaption>Slice 137</figcaption>
+      </figure>
+      <figure>
+        <img src="samples/vlm_slice_205.png" alt="Infection overlay, slice 205">
+        <figcaption>Slice 205</figcaption>
+      </figure>
+      <figure>
+        <img src="samples/vlm_slice_225.png" alt="Infection overlay, slice 225">
+        <figcaption>Slice 225</figcaption>
+      </figure>
+    </div>
+    <table class="datatable">
+      <tr><th>Failure mode</th><th>Verdict</th><th>Severity</th><th>What the model saw</th></tr>
+      <tr>
+        <td>Vessel misclassification</td>
+        <td><span class="badge present">present</span></td>
+        <td>moderate</td>
+        <td>Small red voxels tracing pulmonary vessels in all four images, most prominent in slices 83 and 205.</td>
+      </tr>
+      <tr>
+        <td>Missed dense consolidation above the HU band</td>
+        <td><span class="badge present">present</span></td>
+        <td>high</td>
+        <td>On slice 225 the mask misses the denser central part of the large right-lung consolidation, stopping at the band edge.</td>
+      </tr>
+      <tr>
+        <td>Partial-volume edges</td>
+        <td><span class="badge absent">absent</span></td>
+        <td>low</td>
+        <td>No clear partial-volume artifacts hugging the lung boundaries; peripheral red areas look like true pathology. This diverges from the heuristic proxy, which had flagged them.</td>
+      </tr>
+      <tr>
+        <td>Pleural-edge noise</td>
+        <td><span class="badge absent">absent</span></td>
+        <td>low</td>
+        <td>No infection-labeled voxels touching the image border in any of the four images.</td>
+      </tr>
+    </table>
+    <p class="fine">
+      Agreement with the analyst's takeaways: the method-level points (T1&ndash;T5, T7) cannot
+      be judged from overlays either way; T6 (documented disagreement modes versus
+      radiologist polygons) was partially reproduced &mdash; the model flagged the missed
+      consolidation and vessel misclassification but did not reproduce the partial-volume
+      edge finding. Full report: <code>pipeline/data/disagreement_report_vlm.md</code> in the repo.
+    </p>
+
+    <h3>HU-band sensitivity sweep</h3>
+    <p>
+      The pipeline re-ran quantification over 13 threshold configurations (18.6 minutes
+      wall time): the project-standard bands plus one-at-a-time variations of each lung
+      and infection band edge. The headline 9.69% sits inside a sweep range of 0.24%
+      to 14.47%.
+    </p>
+    <div class="statrow">
+      <div class="stat"><span class="statnum">13</span><span class="statlbl">configurations</span></div>
+      <div class="stat"><span class="statnum">9.69%</span><span class="statlbl">baseline</span></div>
+      <div class="stat"><span class="statnum">0.24&ndash;14.47%</span><span class="statlbl">sweep range</span></div>
+    </div>
+    <p>
+      The infection band's upper edge is the dominant lever: raising it pulls dense
+      consolidation into the mask, lowering it restricts the mask to ground glass. The
+      lung band edges move the denominator and the mask together, so their effect is
+      smaller &mdash; except at the extreme. Setting the lung lower bound to &minus;1000
+      collapses the metric to 0.24%, because background padding floods the lung mask.
+      That configuration is a documented failure mode, not a plausible alternative.
+    </p>
+    <figure class="sweepfig">
+      <img src="samples/sweep_oat.png" alt="One-at-a-time sweep results">
+      <figcaption>One-at-a-time variations around the standard bands.</figcaption>
+    </figure>
+    <figure class="sweepfig">
+      <img src="samples/sweep_heatmap.png" alt="Infection-band grid heatmap">
+      <figcaption>3&times;3 grid over the infection band.</figcaption>
+    </figure>
+    <table class="datatable">
+      <tr><th>Configuration</th><th class="num">Mean infection %</th><th class="num">Seconds</th></tr>
+      <tr><td>baseline (standard bands)</td><td class="num">9.69</td><td class="num">78.9</td></tr>
+      <tr><td>lung_lo = &minus;1000</td><td class="num">0.24</td><td class="num">90.0</td></tr>
+      <tr><td>lung_lo = &minus;900</td><td class="num">10.33</td><td class="num">99.5</td></tr>
+      <tr><td>lung_hi = &minus;350</td><td class="num">9.41</td><td class="num">94.2</td></tr>
+      <tr><td>lung_hi = &minus;250</td><td class="num">9.89</td><td class="num">93.1</td></tr>
+      <tr><td>infection band [&minus;750, &minus;250]</td><td class="num">12.64</td><td class="num">85.6</td></tr>
+      <tr><td>infection band [&minus;750, &minus;200]</td><td class="num">13.47</td><td class="num">82.1</td></tr>
+      <tr><td>infection band [&minus;750, &minus;150]</td><td class="num">14.47</td><td class="num">89.3</td></tr>
+      <tr><td>infection band [&minus;700, &minus;250]</td><td class="num">8.92</td><td class="num">76.4</td></tr>
+      <tr><td>infection band [&minus;700, &minus;150]</td><td class="num">10.61</td><td class="num">66.3</td></tr>
+      <tr><td>infection band [&minus;650, &minus;250]</td><td class="num">6.44</td><td class="num">83.0</td></tr>
+      <tr><td>infection band [&minus;650, &minus;200]</td><td class="num">7.14</td><td class="num">129.8</td></tr>
+      <tr><td>infection band [&minus;650, &minus;150]</td><td class="num">7.97</td><td class="num">48.0</td></tr>
+    </table>
+    <p class="fine">
+      Every configuration is a full pipeline run with its code hash stamped; cost scales
+      with configurations &times; series &times; segmentation time. Sweep code:
+      <code>pipeline/ai_sweep.py</code> in the repo.
+    </p>
   </section>
 </main>
 
