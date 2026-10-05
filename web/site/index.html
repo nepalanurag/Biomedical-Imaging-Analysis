@@ -10,68 +10,148 @@
 <body>
 <header>
   <h1>COVID lung infection on CT</h1>
-  <p class="sub">Segmentation and quantification demo. Pick a slice, see the infected regions.</p>
+  <p class="sub">Segmentation and quantification demo. Scroll through the full 255-slice scan, run the pipeline stages, and stress-test the thresholds.</p>
   <nav>
-    <a href="#samples">Samples</a>
+    <a href="#viewer">Slice viewer</a>
+    <a href="#pipelinerun">Pipeline run</a>
     <a href="#method">How it works</a>
     <a href="#patients">Across patients</a>
-    <a href="#pipeline">Production pipeline</a>
+    <a href="#sweep">Sensitivity</a>
+    <a href="#vlm">AI second reader</a>
   </nav>
 </header>
 
 <main>
   <section class="explainer">
     <p>
-      This page runs a simple, interpretable pipeline on chest CT slices from a COVID-positive patient:
+      This page runs a simple, interpretable pipeline on a chest CT series from a COVID-positive patient:
       threshold the Hounsfield units to find the lungs, threshold again to find infected-looking tissue
       (ground glass in the -700 to -200 HU band), and report what fraction of the lung is affected.
-      No neural network, no black box. The results below are precomputed from the full 3D scan;
-      the method and its limits are described at the bottom of the page.
+      No neural network, no black box. Every image and number below is precomputed from the real
+      255-slice scan; the method and its limits are described further down.
     </p>
     <p class="note">
       Demo only, not a medical device. The scans come from the public MIDRC-RICORD-1A research dataset.
     </p>
   </section>
 
-  <section id="samples">
-    <h2>Sample slices</h2>
-    <div id="thumbs" class="thumbs"></div>
-  </section>
-
-  <section class="viewer">
-    <div class="imagebox">
-      <img id="mainimg" alt="CT slice">
-      <div class="toggle">
-        <button id="btn-ct" class="active">CT only</button>
-        <button id="btn-overlay">Infection overlay</button>
+  <section id="viewer">
+    <h2>Slice viewer: the full series</h2>
+    <p>
+      All 255 axial slices of the RICORD series, segmented with the pipeline below.
+      Drag the slider or use the arrow keys to move through the scan; toggle the infection overlay.
+    </p>
+    <div class="viewer">
+      <div class="imagebox">
+        <div class="stack">
+          <img id="v-ct" alt="CT slice, lung window">
+          <img id="v-ov" alt="Infection overlay" class="overlay">
+        </div>
+        <div class="vcontrols">
+          <button id="v-prev" class="ghostbtn" aria-label="Previous slice">&larr;</button>
+          <input type="range" id="v-slider" min="0" max="254" value="127" step="1" aria-label="Slice">
+          <button id="v-next" class="ghostbtn" aria-label="Next slice">&rarr;</button>
+        </div>
+        <div class="toggle">
+          <button id="vbtn-ct" class="active">CT only</button>
+          <button id="vbtn-overlay">Infection overlay</button>
+        </div>
+      </div>
+      <div class="result">
+        <h2 id="v-title">Slice 128 of 255</h2>
+        <div class="big"><span id="v-pct">-</span><span class="unit">% of lung infected</span></div>
+        <div class="ci">95% CI <span id="v-ci">-</span></div>
+        <div class="cibar"><div id="v-cifill"></div><div id="v-cidot"></div></div>
+        <table>
+          <tr><td>Slice index</td><td id="v-slice">-</td></tr>
+          <tr><td>Lung voxels</td><td id="v-lung">-</td></tr>
+          <tr><td>Infected voxels</td><td id="v-inf">-</td></tr>
+          <tr><td>Slice HU min / mean / max</td><td id="v-hu">-</td></tr>
+        </table>
+        <p class="fine">Precomputed with the segmentation pipeline described below; slice masks use the same fixed metric (infected voxels inside the lung mask). The interval is a Wilson score interval for the infected-voxel fraction, computed in your browser from the slice counts.</p>
       </div>
     </div>
-    <div class="result">
-      <h2 id="r-title">Slice</h2>
-      <div class="big"><span id="r-pct">-</span><span class="unit">% of lung infected</span></div>
-      <div class="ci">95% CI <span id="r-ci">-</span></div>
-      <div class="cibar"><div id="r-cifill"></div><div id="r-cidot"></div></div>
-      <table>
-        <tr><td>Slice index</td><td id="r-slice">-</td></tr>
-        <tr><td>Lung pixels</td><td id="r-lung">-</td></tr>
-        <tr><td>Infected pixels</td><td id="r-inf">-</td></tr>
-      </table>
-      <p class="fine">Precomputed with the segmentation pipeline described below. The interval is a Wilson score interval for the infected-pixel fraction.</p>
-    </div>
   </section>
 
-  <section>
-    <h2>Try your own image</h2>
+  <section id="pipelinerun">
+    <h2>Pipeline run, step by step</h2>
     <p>
-      Upload a lung-window CT slice (grayscale PNG or JPEG). The page shows it and gives a
-      <strong>rough on-screen estimate</strong> by inverting the standard lung window back to
-      approximate Hounsfield units. This is approximate: there is no lung mask in the browser,
-      so treat it as a sketch, not a measurement. The four samples above carry the real segmented results.
+      The production pipeline in the repo
+      (<a href="https://github.com/nepalanurag/Biomedical-Imaging-Analysis/tree/main/pipeline">pipeline/</a>)
+      walks a DICOM tree, converts each series to NIfTI, and writes a versioned Parquet manifest that
+      every downstream step reads. This is the actual run behind this page, stage by stage, with the
+      real values from its artifacts. Click a stage to inspect it.
     </p>
-    <input type="file" id="upload" accept="image/png,image/jpeg">
-    <div id="upload-result" class="upload-result" hidden>
-      <img id="upload-img" alt="uploaded slice">
-      <p id="upload-text"></p>
+    <div class="stepper" id="stepper">
+      <button class="stepbtn active" data-stage="0">1. Ingest</button>
+      <button class="stepbtn" data-stage="1">2. Validate</button>
+      <button class="stepbtn" data-stage="2">3. Eligibility</button>
+      <button class="stepbtn" data-stage="3">4. Quantify</button>
+      <button class="stepbtn" data-stage="4">5. Refresh</button>
+    </div>
+    <div class="stagepanels">
+      <div class="stagepanel active" data-stage="0">
+        <h3>Ingest: DICOM &rarr; NIfTI &rarr; manifest</h3>
+        <p><code>pipeline/ingest.py</code> (pydicom &rarr; nibabel) converted the series and wrote
+        <code>manifest.parquet</code> under contract <code>manifest/1.0</code>:</p>
+        <table class="datatable">
+          <tr><th>Field</th><th>Value</th></tr>
+          <tr><td>Series in manifest</td><td class="num">1</td></tr>
+          <tr><td>Slices</td><td class="num">255</td></tr>
+          <tr><td>HU range over the volume</td><td class="num">[-3024, 1857]</td></tr>
+          <tr><td>Series UID</td><td><code>1.2.826.0.1.3680043.10.474.419639&hellip;</code></td></tr>
+          <tr><td>Patient</td><td>MIDRC-RICORD-1A-419639-000082</td></tr>
+        </table>
+      </div>
+      <div class="stagepanel" data-stage="1">
+        <h3>Validate: schema, identity, eligibility gates</h3>
+        <p><code>pipeline/validate.py</code> (pandera + the eligibility rule) checked the manifest
+        against its contract and wrote <code>validation_report.json</code>:</p>
+        <div class="statrow">
+          <div class="stat"><span class="statnum">1</span><span class="statlbl">series checked</span></div>
+          <div class="stat"><span class="statnum">1</span><span class="statlbl">eligible</span></div>
+          <div class="stat"><span class="statnum">0</span><span class="statlbl">quarantined</span></div>
+          <div class="stat"><span class="statnum">0</span><span class="statlbl">validation failures</span></div>
+        </div>
+        <p class="fine">Rejected series are quarantined with a machine-readable reason instead of being silently dropped.</p>
+      </div>
+      <div class="stagepanel" data-stage="2">
+        <h3>Eligibility: is this series analyzable?</h3>
+        <p>A series enters the analysis table only if all four of these hold:</p>
+        <ol>
+          <li>Modality is CT.</li>
+          <li>The series description does not name a localizer, scout, or topogram survey.</li>
+          <li>ImageType is ORIGINAL: no derived or secondary reformats, MIPs, or minIPs.</li>
+          <li>The acquisition geometry is axial (ImageOrientationPatient near the canonical [1,0,0,0,1,0]).</li>
+        </ol>
+        <p><strong>Verdict on this series:</strong> <span class="badge absent">eligible</span> axial diagnostic CT.</p>
+        <p class="fine">The rule is deliberately conservative: a series that cannot be proven axial and diagnostic is rejected. A rejected series can be whitelisted explicitly with a written reason, never by weakening the defaults.</p>
+      </div>
+      <div class="stagepanel" data-stage="3">
+        <h3>Quantify: the fixed metric</h3>
+        <p><code>pipeline/quantify.py</code> segmented lungs (HU [-950,-300]) and infection (HU [-700,-200]);
+        the numerator counts infected voxels <em>inside</em> the lung mask, so the percentage can never exceed 100:</p>
+        <div class="statrow">
+          <div class="stat"><span class="statnum">682,603</span><span class="statlbl">infected voxels</span></div>
+          <div class="stat"><span class="statnum">7,043,692</span><span class="statlbl">lung voxels</span></div>
+          <div class="stat"><span class="statnum">9.69%</span><span class="statlbl">infected, 95% CI [9.67, 9.71]</span></div>
+        </div>
+        <table class="datatable">
+          <tr><th>Field</th><th>Value</th></tr>
+          <tr><td>Lung band</td><td class="num">[-950, -300] HU</td></tr>
+          <tr><td>Infection band</td><td class="num">[-700, -200] HU</td></tr>
+          <tr><td>Code hash</td><td><code>bfc77cf3e707</code></td></tr>
+          <tr><td>Git SHA</td><td><code>d28bbc0</code></td></tr>
+          <tr><td>Run</td><td><code>20261005T221101Z</code></td></tr>
+        </table>
+      </div>
+      <div class="stagepanel" data-stage="4">
+        <h3>Refresh: versioned results</h3>
+        <p><code>pipeline/refresh.py</code> stamped the results as <code>quantification_v20261005T221101Z</code>:
+        every refresh carries its timestamp, code hash, and git SHA, so any number on this page can be
+        traced back to the exact code that produced it. The repo carries 30 tests, DVC stages, a
+        Dockerfile, and CI for the pipeline.</p>
+      </div>
     </div>
   </section>
 
@@ -115,6 +195,19 @@
       Full analysis, figures, and code: <a href="https://github.com/nepalanurag/Biomedical-Imaging-Analysis">github.com/nepalanurag/Biomedical-Imaging-Analysis</a>.
     </p>
     <p class="fine">Data: MIDRC-RICORD-1A (RSNA International COVID-19 Open Radiology Database), via The Cancer Imaging Archive, CC BY-NC 4.0. One COVID-positive chest CT series used here.</p>
+
+    <h3>Try your own image</h3>
+    <p>
+      Upload a lung-window CT slice (grayscale PNG or JPEG). The page shows it and gives a
+      <strong>rough on-screen estimate</strong> by inverting the standard lung window back to
+      approximate Hounsfield units. This is approximate: there is no lung mask in the browser,
+      so treat it as a sketch, not a measurement. The viewer above carries the real segmented results.
+    </p>
+    <input type="file" id="upload" accept="image/png,image/jpeg">
+    <div id="upload-result" class="upload-result" hidden>
+      <img id="upload-img" alt="uploaded slice">
+      <p id="upload-text"></p>
+    </div>
   </section>
 
   <section id="patients">
@@ -142,6 +235,7 @@
     <canvas id="hist" width="720" height="280"></canvas>
     <p class="fine">Distribution of infection percentage across the 206 kept series. Data: infection_quantification_by_subject.csv in the repo.</p>
   </section>
+
   <section id="pipeline">
     <h2>Production pipeline</h2>
     <p>
@@ -163,20 +257,6 @@
       <div class="fbox">quantify.py<span>contract results/1.0</span></div><span class="farrow">&rarr;</span>
       <div class="fbox">refresh.py<span>versioned results</span></div>
     </div>
-
-    <h3>Series-eligibility rule</h3>
-    <p>A series enters the analysis table only if all four of these hold:</p>
-    <ol>
-      <li>Modality is CT.</li>
-      <li>The series description does not name a localizer, scout, or topogram survey.</li>
-      <li>ImageType is ORIGINAL: no derived or secondary reformats, MIPs, or minIPs.</li>
-      <li>The acquisition geometry is axial (ImageOrientationPatient near the canonical [1,0,0,0,1,0]).</li>
-    </ol>
-    <p class="fine">
-      The rule is deliberately conservative: a series that cannot be proven axial and
-      diagnostic is rejected. A rejected series can be whitelisted explicitly with a
-      written reason, never by weakening the defaults.
-    </p>
 
     <h3>Validation on the real series</h3>
     <p>End-to-end run on the 255-slice RICORD series used in this demo:</p>
@@ -212,8 +292,69 @@
       <code>infection_quantification_by_subject_curated.csv</code> and
       <code>analysis/curation_log.csv</code> in the repo.
     </p>
+  </section>
 
-    <h3>AI second reader</h3>
+  <section id="sweep">
+    <h2>HU-band sensitivity sweep</h2>
+    <p>
+      The pipeline re-ran quantification over 13 threshold configurations (18.6 minutes
+      wall time): the project-standard bands plus one-at-a-time variations of each lung
+      and infection band edge. The headline 9.69% sits inside a sweep range of 0.24%
+      to 14.47%. Click a bar to inspect that configuration.
+    </p>
+    <div class="statrow">
+      <div class="stat"><span class="statnum">13</span><span class="statlbl">configurations</span></div>
+      <div class="stat"><span class="statnum">9.69%</span><span class="statlbl">baseline</span></div>
+      <div class="stat"><span class="statnum">0.24&ndash;14.47%</span><span class="statlbl">sweep range</span></div>
+    </div>
+    <div id="sweep-chart-wrap">
+      <svg id="sweep-chart" role="img" aria-label="Bar chart of sweep configurations"></svg>
+      <div id="sweep-detail" class="sweepdetail">
+        <h3 id="sd-title">Select a configuration</h3>
+        <div id="sd-body"><p class="fine">Click any bar to see its threshold bands, mean infection percentage, and runtime.</p></div>
+      </div>
+    </div>
+    <p>
+      The infection band's upper edge is the dominant lever: raising it pulls dense
+      consolidation into the mask, lowering it restricts the mask to ground glass. The
+      lung band edges move the denominator and the mask together, so their effect is
+      smaller, except at the extreme. Setting the lung lower bound to &minus;1000
+      collapses the metric to 0.24%, because background padding floods the lung mask.
+      That configuration is a documented failure mode, not a plausible alternative.
+    </p>
+    <figure class="sweepfig">
+      <img src="samples/sweep_oat.png" alt="One-at-a-time sweep results">
+      <figcaption>One-at-a-time variations around the standard bands.</figcaption>
+    </figure>
+    <figure class="sweepfig">
+      <img src="samples/sweep_heatmap.png" alt="Infection-band grid heatmap">
+      <figcaption>3&times;3 grid over the infection band.</figcaption>
+    </figure>
+    <table class="datatable" id="sweep-table">
+      <tr><th>Configuration</th><th class="num">Mean infection %</th><th class="num">Seconds</th></tr>
+      <tr><td>baseline (standard bands)</td><td class="num">9.69</td><td class="num">78.9</td></tr>
+      <tr><td>lung_lo = &minus;1000</td><td class="num">0.24</td><td class="num">90.0</td></tr>
+      <tr><td>lung_lo = &minus;900</td><td class="num">10.33</td><td class="num">99.5</td></tr>
+      <tr><td>lung_hi = &minus;350</td><td class="num">9.41</td><td class="num">94.2</td></tr>
+      <tr><td>lung_hi = &minus;250</td><td class="num">9.89</td><td class="num">93.1</td></tr>
+      <tr><td>infection band [&minus;750, &minus;250]</td><td class="num">12.64</td><td class="num">85.6</td></tr>
+      <tr><td>infection band [&minus;750, &minus;200]</td><td class="num">13.47</td><td class="num">82.1</td></tr>
+      <tr><td>infection band [&minus;750, &minus;150]</td><td class="num">14.47</td><td class="num">89.3</td></tr>
+      <tr><td>infection band [&minus;700, &minus;250]</td><td class="num">8.92</td><td class="num">76.4</td></tr>
+      <tr><td>infection band [&minus;700, &minus;150]</td><td class="num">10.61</td><td class="num">66.3</td></tr>
+      <tr><td>infection band [&minus;650, &minus;250]</td><td class="num">6.44</td><td class="num">83.0</td></tr>
+      <tr><td>infection band [&minus;650, &minus;200]</td><td class="num">7.14</td><td class="num">129.8</td></tr>
+      <tr><td>infection band [&minus;650, &minus;150]</td><td class="num">7.97</td><td class="num">48.0</td></tr>
+    </table>
+    <p class="fine">
+      Every configuration is a full pipeline run with its code hash stamped; cost scales
+      with configurations &times; series &times; segmentation time. Sweep code:
+      <code>pipeline/ai_sweep.py</code> in the repo.
+    </p>
+  </section>
+
+  <section id="vlm">
+    <h2>AI second reader</h2>
     <p>
       A vision model (Gemini 2.5 Flash) was shown the same four infection-overlay slices
       as the earlier dry-run study and asked to judge four known failure modes of
@@ -271,56 +412,6 @@
       radiologist polygons) was partially reproduced: the model flagged the missed
       consolidation and vessel misclassification but did not reproduce the partial-volume
       edge finding. Full report: <code>pipeline/data/disagreement_report_vlm.md</code> in the repo.
-    </p>
-
-    <h3>HU-band sensitivity sweep</h3>
-    <p>
-      The pipeline re-ran quantification over 13 threshold configurations (18.6 minutes
-      wall time): the project-standard bands plus one-at-a-time variations of each lung
-      and infection band edge. The headline 9.69% sits inside a sweep range of 0.24%
-      to 14.47%.
-    </p>
-    <div class="statrow">
-      <div class="stat"><span class="statnum">13</span><span class="statlbl">configurations</span></div>
-      <div class="stat"><span class="statnum">9.69%</span><span class="statlbl">baseline</span></div>
-      <div class="stat"><span class="statnum">0.24&ndash;14.47%</span><span class="statlbl">sweep range</span></div>
-    </div>
-    <p>
-      The infection band's upper edge is the dominant lever: raising it pulls dense
-      consolidation into the mask, lowering it restricts the mask to ground glass. The
-      lung band edges move the denominator and the mask together, so their effect is
-      smaller, except at the extreme. Setting the lung lower bound to &minus;1000
-      collapses the metric to 0.24%, because background padding floods the lung mask.
-      That configuration is a documented failure mode, not a plausible alternative.
-    </p>
-    <figure class="sweepfig">
-      <img src="samples/sweep_oat.png" alt="One-at-a-time sweep results">
-      <figcaption>One-at-a-time variations around the standard bands.</figcaption>
-    </figure>
-    <figure class="sweepfig">
-      <img src="samples/sweep_heatmap.png" alt="Infection-band grid heatmap">
-      <figcaption>3&times;3 grid over the infection band.</figcaption>
-    </figure>
-    <table class="datatable">
-      <tr><th>Configuration</th><th class="num">Mean infection %</th><th class="num">Seconds</th></tr>
-      <tr><td>baseline (standard bands)</td><td class="num">9.69</td><td class="num">78.9</td></tr>
-      <tr><td>lung_lo = &minus;1000</td><td class="num">0.24</td><td class="num">90.0</td></tr>
-      <tr><td>lung_lo = &minus;900</td><td class="num">10.33</td><td class="num">99.5</td></tr>
-      <tr><td>lung_hi = &minus;350</td><td class="num">9.41</td><td class="num">94.2</td></tr>
-      <tr><td>lung_hi = &minus;250</td><td class="num">9.89</td><td class="num">93.1</td></tr>
-      <tr><td>infection band [&minus;750, &minus;250]</td><td class="num">12.64</td><td class="num">85.6</td></tr>
-      <tr><td>infection band [&minus;750, &minus;200]</td><td class="num">13.47</td><td class="num">82.1</td></tr>
-      <tr><td>infection band [&minus;750, &minus;150]</td><td class="num">14.47</td><td class="num">89.3</td></tr>
-      <tr><td>infection band [&minus;700, &minus;250]</td><td class="num">8.92</td><td class="num">76.4</td></tr>
-      <tr><td>infection band [&minus;700, &minus;150]</td><td class="num">10.61</td><td class="num">66.3</td></tr>
-      <tr><td>infection band [&minus;650, &minus;250]</td><td class="num">6.44</td><td class="num">83.0</td></tr>
-      <tr><td>infection band [&minus;650, &minus;200]</td><td class="num">7.14</td><td class="num">129.8</td></tr>
-      <tr><td>infection band [&minus;650, &minus;150]</td><td class="num">7.97</td><td class="num">48.0</td></tr>
-    </table>
-    <p class="fine">
-      Every configuration is a full pipeline run with its code hash stamped; cost scales
-      with configurations &times; series &times; segmentation time. Sweep code:
-      <code>pipeline/ai_sweep.py</code> in the repo.
     </p>
   </section>
 </main>

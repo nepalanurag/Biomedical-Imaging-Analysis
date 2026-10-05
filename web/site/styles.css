@@ -66,3 +66,26 @@ code { font-size: 13px; }
 .sweepfig { margin: 16px 0; }
 .sweepfig img { max-width: 100%; border: 1px solid #ccc; background: #fff; }
 .sweepfig figcaption { font-size: 13px; color: #555; margin-top: 4px; }
+
+/* Slice viewer: stacked CT + overlay, controls, stepper, sweep explorer. */
+.stack { position: relative; background: #000; }
+.stack img { width: 100%; display: block; }
+.stack img.overlay { position: absolute; top: 0; left: 0; display: none; pointer-events: none; }
+.vcontrols { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
+.vcontrols input[type="range"] { flex: 1; }
+.ghostbtn { font-family: inherit; font-size: 16px; padding: 4px 12px; border: 1px solid #666;
+            background: #fff; cursor: pointer; }
+.ghostbtn:hover { background: #f0ede6; }
+
+.stepper { display: flex; gap: 8px; flex-wrap: wrap; margin: 16px 0 4px; }
+.stepbtn { font-family: inherit; font-size: 15px; padding: 8px 16px; border: 1px solid #999;
+           background: #fff; cursor: pointer; }
+.stepbtn.active { background: #222; color: #fff; border-color: #222; }
+.stagepanel { display: none; border: 1px solid #999; background: #fff; padding: 16px 20px; margin-top: 8px; }
+.stagepanel.active { display: block; }
+.stagepanel h3 { margin-top: 0; }
+
+#sweep-chart-wrap { display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start; margin: 12px 0; }
+#sweep-chart { flex: 1 1 480px; background: #fff; border: 1px solid #ccc; }
+.sweepdetail { flex: 1 1 260px; border: 1px solid #999; background: #fff; padding: 12px 16px; }
+.sweepdetail h3 { margin-top: 0; font-size: 16px; }
