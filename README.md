@@ -26,6 +26,29 @@ The app provides:
 - Interactive overlays for original, lung mask, and infection mask.
 - Patient data analysis with infection percentage distribution and top infected cases.
 
+## DICOM ingestion pipeline
+
+`pipeline/` is a production ingestion pipeline for the CT analysis above:
+DICOM → NIfTI + a versioned Parquet manifest, Pandera validation gates, a
+series-eligibility rule as code (axial diagnostic CT only — scout/localizer
+and reformatted series are quarantined, never silently dropped), and
+quantification using the fixed intersection-based infection metric as the
+single source of truth. It also ships two AI components: a VLM
+second-reader study that catalogs segmentation disagreement modes against
+the human-written takeaways, and an agentic HU-band sensitivity sweep.
+
+```bash
+pip install -r pipeline/requirements.txt
+python -m pipeline.ingest --dicom-root "MIDRC-RICORD-1A-419639-000082" --out-dir pipeline_data
+python -m pipeline.validate --manifest pipeline_data/manifest.parquet --out-dir pipeline_data
+python -m pipeline.quantify --manifest pipeline_data/manifest.parquet --out-dir pipeline_data
+pytest tests/ -q
+```
+
+See [`pipeline/README.md`](pipeline/README.md) for the full documentation:
+architecture, configuration, versioned data contracts, DVC stages, Docker,
+and CI.
+
 ## Quickstart
 
 1. **Clone the repository**

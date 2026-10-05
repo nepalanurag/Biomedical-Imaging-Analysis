@@ -1,0 +1,40 @@
+stages:
+  ingest:
+    cmd: >-
+      python -m pipeline.ingest
+      --dicom-root "MIDRC-RICORD-1A-419639-000082"
+      --out-dir pipeline_data
+    deps:
+      - pipeline/ingest.py
+      - pipeline/contracts.py
+      - pipeline/config.py
+      - pipeline/log.py
+      - MIDRC-RICORD-1A-419639-000082
+    outs:
+      - pipeline_data/manifest.parquet:
+          persist: true
+  validate:
+    cmd: >-
+      python -m pipeline.validate
+      --manifest pipeline_data/manifest.parquet
+      --out-dir pipeline_data
+    deps:
+      - pipeline/validate.py
+      - pipeline/eligibility.py
+      - pipeline/contracts.py
+      - pipeline_data/manifest.parquet
+    outs:
+      - pipeline_data/validation_report.json:
+          persist: true
+  quantify:
+    cmd: >-
+      python -m pipeline.quantify
+      --manifest pipeline_data/manifest.parquet
+      --out-dir pipeline_data
+    deps:
+      - pipeline/quantify.py
+      - pipeline/contracts.py
+      - pipeline_data/manifest.parquet
+    outs:
+      - pipeline_data/quantification.parquet:
+          persist: true

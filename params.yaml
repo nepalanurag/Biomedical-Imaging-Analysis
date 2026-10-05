@@ -1,0 +1,14 @@
+# DVC-tracked parameters for the pipeline stages.
+# Override on the CLI, e.g.:
+#   dvc repro -S quantify --set-param quantify.inf_hi=-150
+
+ingest:
+  dicom_root: "MIDRC-RICORD-1A-419639-000082"
+  out_dir: pipeline_data
+  write_nifti: true
+
+bands:
+  lung_lo: -950
+  lung_hi: -300
+  inf_lo: -700
+  inf_hi: -200
