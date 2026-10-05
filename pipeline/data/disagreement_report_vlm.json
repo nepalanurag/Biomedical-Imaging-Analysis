@@ -1,0 +1,109 @@
+{
+  "reader": "vlm:gemini/gemini-2.5-flash",
+  "series_uid": "1.2.826.0.1.3680043.10.474.419639.403650391453800318566197197100",
+  "slices": [
+    {
+      "slice": 83,
+      "overlay": "overlays/slice_083.png",
+      "infection_pct": 2.56,
+      "ci_low": 2.41,
+      "ci_high": 2.71
+    },
+    {
+      "slice": 137,
+      "overlay": "overlays/slice_137.png",
+      "infection_pct": 11.54,
+      "ci_low": 11.26,
+      "ci_high": 11.82
+    },
+    {
+      "slice": 205,
+      "overlay": "overlays/slice_205.png",
+      "infection_pct": 6.02,
+      "ci_low": 5.75,
+      "ci_high": 6.3
+    },
+    {
+      "slice": 225,
+      "overlay": "overlays/slice_225.png",
+      "infection_pct": 29.19,
+      "ci_low": 28.39,
+      "ci_high": 30.01
+    }
+  ],
+  "findings": [
+    {
+      "mode": "vessel_misclassification",
+      "present": true,
+      "severity": "moderate",
+      "evidence": "Numerous small red voxels consistently highlight what appear to be pulmonary vessels in all four images, particularly prominent in Images 1 and 3.",
+      "reader": "vlm:gemini/gemini-2.5-flash"
+    },
+    {
+      "mode": "partial_volume_edges",
+      "present": false,
+      "severity": "low",
+      "evidence": "No clear evidence of misclassified partial volume artifacts hugging the lung boundaries was observed across any of the images; peripheral red areas appear to represent true pathology.",
+      "reader": "vlm:gemini/gemini-2.5-flash"
+    },
+    {
+      "mode": "missed_consolidation_above_band",
+      "present": true,
+      "severity": "high",
+      "evidence": "In Image 4, the automated segmentation misses the denser, central portions of the large consolidation in the right lung, stopping at a specific HU threshold.",
+      "reader": "vlm:gemini/gemini-2.5-flash"
+    },
+    {
+      "mode": "pleural_edge_noise",
+      "present": false,
+      "severity": "low",
+      "evidence": "No red infection-labeled voxels were observed touching the image border in any of the provided images.",
+      "reader": "vlm:gemini/gemini-2.5-flash"
+    }
+  ],
+  "takeaway_agreement": [
+    {
+      "takeaway_id": "T1",
+      "takeaway": "threshold over deep segmenter",
+      "status": "not_assessable_from_overlays",
+      "detail": "method-level point; overlays cannot confirm or refute it"
+    },
+    {
+      "takeaway_id": "T2",
+      "takeaway": "numerator/denominator population mismatch",
+      "status": "not_assessable_from_overlays",
+      "detail": "method-level point; overlays cannot confirm or refute it"
+    },
+    {
+      "takeaway_id": "T3",
+      "takeaway": "Wilson intervals for per-slice percentages",
+      "status": "not_assessable_from_overlays",
+      "detail": "method-level point; overlays cannot confirm or refute it"
+    },
+    {
+      "takeaway_id": "T4",
+      "takeaway": "per-patient splitting for future classifier work",
+      "status": "not_assessable_from_overlays",
+      "detail": "method-level point; overlays cannot confirm or refute it"
+    },
+    {
+      "takeaway_id": "T5",
+      "takeaway": "bands sit inside the published range",
+      "status": "not_assessable_from_overlays",
+      "detail": "method-level point; overlays cannot confirm or refute it"
+    },
+    {
+      "takeaway_id": "T6",
+      "takeaway": "documented disagreement modes vs radiologist polygons",
+      "status": "partially_reproduced",
+      "detail": "flagged ['missed_consolidation_above_band', 'vessel_misclassification'], missed ['partial_volume_edges']"
+    },
+    {
+      "takeaway_id": "T7",
+      "takeaway": "single subject, no negative controls",
+      "status": "not_assessable_from_overlays",
+      "detail": "method-level point; overlays cannot confirm or refute it"
+    }
+  ],
+  "caveat": "VLM judgments are uncalibrated; treat as hypotheses."
+}

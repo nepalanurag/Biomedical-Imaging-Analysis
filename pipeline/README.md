@@ -177,6 +177,19 @@ python -m pipeline.ai_second_reader --manifest pipeline_data/manifest.parquet \
     --mode vlm --vlm-provider gemini
 ```
 
+A real VLM study has been run and its results are committed in
+`pipeline/data/disagreement_report_vlm.{json,md}` (reader
+`vlm:gemini/gemini-2.5-flash`, same 4 slices as the dry-run so the two
+reads are directly comparable). Headline findings: vessel
+misclassification present (moderate, in all four slices),
+missed consolidation above the band present (high, dense central
+consolidation in one slice that the band's upper edge misses),
+partial-volume edges and pleural edge noise absent. Human takeaway T6
+(documented disagreement modes vs radiologist polygons) is partially
+reproduced (2 of 3 modes); T1-T5 and T7 are method-level points the
+overlays cannot assess. VLM judgments are uncalibrated hypotheses, not
+ground truth.
+
 ### HU-band sensitivity sweep (`ai_sweep.py`)
 
 Varies the lung and infection bands over a grid (default: one-at-a-time
