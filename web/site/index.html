@@ -18,6 +18,7 @@
     <a href="#patients">Across patients</a>
     <a href="#sweep">Sensitivity</a>
     <a href="#vlm">AI second reader</a>
+    <a href="#ownscan">Your scan</a>
   </nav>
 </header>
 
@@ -414,8 +415,34 @@
       edge finding. Full report: <code>pipeline/data/disagreement_report_vlm.md</code> in the repo.
     </p>
   </section>
+
+  <section id="ownscan">
+    <h2>Analyze your own scan</h2>
+    <p>
+      Upload a zip of DICOM files from a chest CT series and the real pipeline
+      (ingest, validation, eligibility, quantification) runs on it in the cloud.
+      A full 255-slice series takes a few minutes; you get the infection
+      percentage with its confidence interval, the validation outcome, and
+      infection overlay images back.
+    </p>
+    <div id="ownscan-body">
+      <input type="file" id="cloud-file" accept=".zip">
+      <button id="cloud-start" class="ghostbtn">Analyze</button>
+      <div id="cloud-progress" hidden>
+        <div class="cloudbar"><div id="cloud-fill"></div></div>
+        <p id="cloud-status" class="fine"></p>
+      </div>
+      <div id="cloud-result" hidden></div>
+      <p class="fine">
+        Limits: zip up to 600 MB, at most 1,000 files. The zip must contain
+        DICOM files (checked by header). Your upload is stored in the project's
+        cloud bucket and processed there. Demo only, not a medical device.
+      </p>
+    </div>
+  </section>
 </main>
 
 <script src="app.js"></script>
+<script src="cloud.js"></script>
 </body>
 </html>

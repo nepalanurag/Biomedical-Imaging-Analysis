@@ -89,3 +89,9 @@ code { font-size: 13px; }
 #sweep-chart { flex: 1 1 480px; background: #fff; border: 1px solid #ccc; }
 .sweepdetail { flex: 1 1 260px; border: 1px solid #999; background: #fff; padding: 12px 16px; }
 .sweepdetail h3 { margin-top: 0; font-size: 16px; }
+
+/* Analyze-your-own-scan section. */
+.cloudbar { height: 12px; background: #eee; border: 1px solid #bbb; margin: 10px 0; max-width: 480px; }
+#cloud-fill { height: 100%; width: 0; background: #1a4f8a; }
+#cloud-result .overlays figure { width: 220px; }
+#cloud-start:disabled { opacity: 0.5; cursor: wait; }

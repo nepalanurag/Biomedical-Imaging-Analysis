@@ -1,0 +1,5 @@
+# Cloud runner service: FastAPI + uvicorn + google-cloud-storage.
+# Pinned after a clean install test. Python 3.12.
+fastapi==0.115.6
+uvicorn==0.34.0
+google-cloud-storage==2.19.0
