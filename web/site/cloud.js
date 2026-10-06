@@ -125,7 +125,7 @@ var CLOUD_API = "";
     var f = fileInput.files[0];
     if (!f) { setStatus("Choose a .zip file first."); return; }
     if (!/\.zip$/i.test(f.name)) { setStatus("Please choose a .zip file of DICOM slices."); return; }
-    if (f.size > 600 * 1024 * 1024) { setStatus("That file is over the 600 MB cap."); return; }
+    if (f.size > 200 * 1024 * 1024) { setStatus("That file is over the 200 MB cap."); return; }
     startBtn.disabled = true;
     resultBox.hidden = true;
     progBox.hidden = false;

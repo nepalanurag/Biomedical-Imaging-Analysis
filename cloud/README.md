@@ -29,6 +29,49 @@ browser                    Cloud Run (this service)              Cloud Storage
 - Auth is Application Default Credentials only: on Cloud Run that is the
   runtime service account. No keys, no service-account JSON anywhere.
 
+## Cost and abuse protection
+
+This is a public portfolio demo, so every layer caps what a flood of
+traffic can cost. Worst-case exposure is **about $1**: the free tier absorbs
+everything below that, and the kill-switch below stops all services the
+moment spend reaches $1.
+
+1. **Cloud Run shape** (`deploy.sh`): `--max-instances 1`,
+   `--min-instances 0`, `--concurrency 1`, `--timeout 900`, `--cpu 4`,
+   `--memory 8Gi`. One instance, one job at a time; extra requests queue.
+   At ~4 minutes a job that is at most ~4 jobs an hour, ~96 a day.
+2. **In-app rate limit** (`cloud/app.py`): 10 jobs per 24 hours per IP,
+   sliding window, enforced when the upload URL is minted (job ids are
+   unguessable, so this caps job creation). In-memory, so it resets if the
+   instance restarts or redeploys; with max-instances 1 there is a single
+   shared counter while the instance lives. Over the limit returns a
+   plain-English HTTP 429.
+3. **Upload caps** (`cloud/app.py`, mirrored in `web/site/cloud.js`):
+   zip <= 200 MB, <= 1,000 files, <= 200 MB per file, and at least one file
+   must carry the DICOM magic header or the upload is rejected with a
+   plain-English 400. Zip-slip paths (`..`, absolute paths) are rejected.
+4. **Storage hygiene**: both buckets are private (uniform bucket-level
+   access, no public grants); every read and write goes through 15-minute
+   signed URLs. Lifecycle rules auto-delete uploads after **1 day** and
+   results after **7 days**, so abandoned data cannot accumulate. The
+   uploads bucket allows browser `PUT` from
+   `https://covid-ct-web.vercel.app` only (bucket CORS); nothing else is
+   reachable cross-origin.
+5. **Minimal IAM**: the service runs as a dedicated service account with
+   `storage.objectAdmin` on the two buckets and nothing else (plus
+   `iam.serviceAccountTokenCreator` on itself, needed to mint signed URLs).
+   The kill-switch function runs as a second account with only
+   `billing.projectManager` on this project.
+6. **Budget + kill-switch** (`deploy.sh`, `cloud/killswitch/`): a **$1/month**
+   budget scoped to this project emails the billing owners at 50%, 90%,
+   and 100%. The same budget publishes to a Pub/Sub topic; a Cloud Function
+   listens, and when a notification reports 100% threshold exceeded it
+   calls the Billing API to **disable billing on the project**. Disabled
+   billing stops every service immediately, so spend cannot go past ~$1
+   no matter what. Re-enable with:
+   `gcloud beta billing projects link PROJECT_ID --billing-account=BILLING_ACCOUNT_ID`
+   (or console: Billing -> Link a billing account).
+
 ## Cost: the free tier covers it
 
 Per full 255-slice run (4 vCPU, 8 GiB, ~4 minutes):
@@ -39,8 +82,8 @@ Per full 255-slice run (4 vCPU, 8 GiB, ~4 minutes):
   cent, and the service scales to zero when idle so it costs nothing
   between runs.
 
-The deploy script also sets a **$1 budget alert** (emails at 50/90/100%),
-so a surprise bill is not possible to miss.
+The $1 budget alert and the kill-switch above are the backstop for
+anything beyond that.
 
 ## Deploy
 
@@ -89,9 +132,11 @@ with a zip made from the test fixtures (see `tests/conftest.py`
 
 ## Limits (by design)
 
-- Zip cap: 600 MB compressed, 500 MB unzipped, 1,000 files, 200 MB per file.
+- Zip cap: 200 MB compressed, 500 MB unzipped (zip-bomb guard), 1,000 files,
+  200 MB per file.
 - The zip must contain at least one file with a DICOM magic header.
 - Zip-slip paths (`..`, absolute paths) are rejected.
+- 10 jobs per 24h per IP (in-app, in-memory sliding window).
 - Each pipeline stage gets 10 minutes; the Cloud Run request timeout is
-  15 minutes.
-- At most 2 concurrent jobs per instance, 2 instances max.
+  15 minutes; 1 instance max, concurrency 1.
+- Uploads auto-delete after 1 day, results after 7 days.

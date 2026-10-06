@@ -10,6 +10,7 @@ Credentials (the runtime service account) for all Google Cloud Storage calls.
 from __future__ import annotations
 
 import asyncio
+import collections
 import hashlib
 import io
 import json
@@ -20,11 +21,12 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import uuid
 import zipfile
 from datetime import datetime, timedelta, timezone
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
@@ -40,11 +42,15 @@ logger = get_logger("cloud.app")
 APP_VERSION = "1.0"
 
 # Upload safety caps.
-MAX_ZIP_BYTES = 600 * 1024 * 1024  # compressed upload cap
-MAX_UNZIPPED_BYTES = 500 * 1024 * 1024
+MAX_ZIP_BYTES = 200 * 1024 * 1024  # compressed upload cap
+MAX_UNZIPPED_BYTES = 500 * 1024 * 1024  # zip-bomb guard on top of the zip cap
 MAX_FILES = 1000
 MAX_FILE_BYTES = 200 * 1024 * 1024
 STAGE_TIMEOUT_S = 600  # per pipeline stage
+
+# Abuse protection: max jobs per IP per sliding 24h window (in-memory).
+RATE_LIMIT_MAX_JOBS = 10
+RATE_LIMIT_WINDOW_S = 24 * 3600
 
 
 class CloudSettings(BaseSettings):
@@ -73,8 +79,43 @@ app.add_middleware(
     max_age=3600,
 )
 
-# At most two jobs at once per instance; Cloud Run runs max 2 instances.
-job_semaphore = asyncio.Semaphore(2)
+# One job at a time per instance; Cloud Run is capped at 1 instance with
+# concurrency 1, so a flood of requests queues instead of scaling spend.
+job_semaphore = asyncio.Semaphore(1)
+
+# In-memory per-IP rate buckets: {ip: deque[monotonic timestamps]}.
+# Resets when the instance restarts or redeploys; with max-instances 1 there
+# is a single shared counter while the instance lives.
+_rate_buckets: dict[str, collections.deque] = {}
+
+
+def _client_ip(request: Request) -> str:
+    fwd = request.headers.get("x-forwarded-for", "")
+    if fwd:
+        return fwd.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
+def check_rate_limit(ip: str) -> None:
+    now = time.monotonic()
+    q = _rate_buckets.get(ip)
+    if q is None:
+        q = _rate_buckets[ip] = collections.deque()
+    while q and now - q[0] > RATE_LIMIT_WINDOW_S:
+        q.popleft()
+    if len(q) >= RATE_LIMIT_MAX_JOBS:
+        retry_s = int(RATE_LIMIT_WINDOW_S - (now - q[0])) + 1
+        h, rem = divmod(retry_s, 3600)
+        raise HTTPException(
+            429,
+            f"Rate limit reached: {RATE_LIMIT_MAX_JOBS} analyses per 24 hours "
+            f"per visitor. Please try again in about {h}h {rem // 60}m.",
+        )
+    q.append(now)
+    # Opportunistic cleanup so the dict cannot grow without bound.
+    if len(_rate_buckets) > 20000:
+        for k in [k for k, v in _rate_buckets.items() if not v]:
+            del _rate_buckets[k]
 
 
 # ---------------------------------------------------------------- storage ---
@@ -384,7 +425,7 @@ def run_job(job_id: str, gcs_uri: str, store: Storage) -> dict:
         except Exception as exc:
             raise JobError(f"Could not download the upload: {exc}", status_code=404)
         if os.path.getsize(zip_path) > MAX_ZIP_BYTES:
-            raise JobError("The uploaded zip is over the 600 MB cap.")
+            raise JobError("That zip is over the 200 MB upload cap.")
 
         inv = validate_and_extract(zip_path, dicom_dir)
 
@@ -486,9 +527,13 @@ def healthz():
 
 
 @app.get("/upload-url")
-def upload_url(filename: str):
+def upload_url(request: Request, filename: str):
     """Signed PUT URL for a DICOM zip. Returns the URL, the job id, and the
-    gs:// URI the frontend must pass to POST /jobs after uploading."""
+    gs:// URI the frontend must pass to POST /jobs after uploading.
+
+    Rate-limited: 10 uploads per 24h per IP. This is the entry point, so
+    limiting here caps job creation too (job ids are unguessable)."""
+    check_rate_limit(_client_ip(request))
     base = os.path.basename(filename or "")
     safe = re.sub(r"[^A-Za-z0-9._-]", "_", base)[:80] or "scan.zip"
     if not safe.lower().endswith(".zip"):
