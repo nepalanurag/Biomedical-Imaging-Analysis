@@ -5,8 +5,10 @@ The budget notification schema (1.0) carries alertThresholdExceeded as a
 1.0-based fraction; 1.0 means spend reached 100% of the budget.
 
 Disabling billing stops all billable services on the project (Cloud Run
-goes dark) until billing is re-linked by hand. That is the point: overspend
-becomes structurally impossible.
+goes dark) until billing is re-linked by hand. That is the point: it makes
+further spend very hard. Budget alerts and the kill-switch can each be
+delayed by a few minutes, so this is a strong safety net rather than a
+guaranteed hard cap; the uploads on/off switch is the primary protection.
 
 Re-enable with:
     gcloud beta billing projects link PROJECT_ID \
