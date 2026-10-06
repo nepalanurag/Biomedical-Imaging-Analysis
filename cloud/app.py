@@ -521,9 +521,30 @@ def _with_overlay_urls(results: dict, store: Storage) -> dict:
 
 
 # ------------------------------------------------------------------- api ---
+def _uploads_enabled() -> bool:
+    """Interview switch. Flip UPLOADS_ENABLED in the Cloud Run console
+    (Variables & Secrets) to turn uploads on/off without redeploying code."""
+    return os.environ.get("UPLOADS_ENABLED", "false").strip().lower() in ("1", "true", "yes")
+
+
+def _require_uploads() -> None:
+    if not _uploads_enabled():
+        raise HTTPException(
+            503,
+            "Uploads are currently disabled. The demo shows a saved example "
+            "analysis instead.",
+        )
+
+
 @app.get("/healthz")
 def healthz():
     return {"ok": True, "version": APP_VERSION}
+
+
+@app.get("/status")
+def status():
+    return {"ok": True, "version": APP_VERSION,
+            "uploads_enabled": _uploads_enabled()}
 
 
 @app.get("/upload-url")
@@ -533,6 +554,7 @@ def upload_url(request: Request, filename: str):
 
     Rate-limited: 10 uploads per 24h per IP. This is the entry point, so
     limiting here caps job creation too (job ids are unguessable)."""
+    _require_uploads()
     check_rate_limit(_client_ip(request))
     base = os.path.basename(filename or "")
     safe = re.sub(r"[^A-Za-z0-9._-]", "_", base)[:80] or "scan.zip"
@@ -552,6 +574,7 @@ def upload_url(request: Request, filename: str):
 
 @app.post("/jobs")
 async def create_job(req: JobRequest):
+    _require_uploads()
     store = get_storage()
     prefix = f"gs://{settings.uploads_bucket}/uploads/"
     if not req.gcs_uri.startswith(prefix) or not req.gcs_uri.endswith(".zip"):
