@@ -175,8 +175,13 @@ fi
 
 # --- build & deploy the service ----------------------------------------------
 echo "Building container with Cloud Build..."
-gcloud builds submit --tag "$REGION-docker.pkg.dev/$PROJECT_ID/ctpipe/$SERVICE:latest" \
-  --dockerfile cloud/Dockerfile . >/dev/null
+if ! gcloud artifacts repositories describe ctpipe --location="$REGION" >/dev/null 2>&1; then
+  gcloud artifacts repositories create ctpipe --repository-format=docker \
+    --location="$REGION" >/dev/null
+  echo "Created Artifact Registry repo ctpipe."
+fi
+gcloud builds submit --config cloud/cloudbuild.yaml \
+  --substitutions "_IMAGE=$REGION-docker.pkg.dev/$PROJECT_ID/ctpipe/$SERVICE:latest" .
 
 echo "Deploying to Cloud Run (1 instance max, concurrency 1)..."
 gcloud run deploy "$SERVICE" \

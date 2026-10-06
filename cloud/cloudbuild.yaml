@@ -1,0 +1,16 @@
+# Cloud Build config for the CT pipeline cloud runner.
+# Build context is the repo root (the Dockerfile copies pipeline/ and cloud/).
+# Invoked by deploy.sh with a _IMAGE substitution:
+#   gcloud builds submit --config cloud/cloudbuild.yaml \
+#     --substitutions "_IMAGE=<region>-docker.pkg.dev/<project>/ctpipe/ctpipe-cloud:latest" .
+steps:
+- name: 'gcr.io/cloud-builders/docker'
+  args:
+  - 'build'
+  - '-t'
+  - '${_IMAGE}'
+  - '-f'
+  - 'cloud/Dockerfile'
+  - '.'
+images:
+- '${_IMAGE}'
