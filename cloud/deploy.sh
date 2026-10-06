@@ -153,9 +153,10 @@ if [ -n "$BUDGET_ID" ]; then
   gcloud billing budgets update "$BUDGET_SHORT" \
     --billing-account="$BILLING_ACCT" \
     --budget-amount=1USD \
-    --threshold-rule=percent=0.50 \
-    --threshold-rule=percent=0.90 \
-    --threshold-rule=percent=1.00 \
+    --clear-threshold-rules \
+    --add-threshold-rule=percent=0.50 \
+    --add-threshold-rule=percent=0.90 \
+    --add-threshold-rule=percent=1.00 \
     --filter-projects="projects/$PROJECT_ID" \
     --notifications-rule-pubsub-topic="$TOPIC_REF" >/dev/null
   echo "Budget '$BUDGET_NAME' updated (\$1/month, alerts at 50/90/100%, Pub/Sub wired)."
