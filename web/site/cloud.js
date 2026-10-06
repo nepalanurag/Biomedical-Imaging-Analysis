@@ -11,7 +11,7 @@
  *   the UPLOADS_ENABLED env var on the Cloud Run service; the switch lives
  *   in the GCP console and needs no code change.
  */
-var CLOUD_API = "";
+var CLOUD_API = "https://ctpipe-cloud-cwvxq5kwiq-uc.a.run.app";
 
 (function () {
   "use strict";

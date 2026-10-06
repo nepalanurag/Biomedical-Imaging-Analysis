@@ -1,0 +1,47 @@
+{
+  "job_id": "d943238038a64dc7",
+  "status": "done",
+  "created_at": "2026-10-06T01:45:37+00:00",
+  "pipeline": {
+    "code_hash": "a59be3241084",
+    "git_sha": "unknown",
+    "results_contract": "results/1.0"
+  },
+  "input": {
+    "gcs_uri": "gs://ct-pipeline-cloud-uploads/uploads/d943238038a64dc7/scan.zip",
+    "n_files": 257,
+    "n_series": 1
+  },
+  "validation": {
+    "n_series": 1,
+    "n_eligible": 1,
+    "n_quarantined": 0,
+    "failures": [],
+    "quarantined": []
+  },
+  "series": [
+    {
+      "series_uid": "1.2.826.0.1.3680043.10.474.419639.403650391453800318566197197100",
+      "slices": 255,
+      "lung_voxels": 7043692,
+      "infected_voxels": 682603,
+      "infection_pct": 9.69,
+      "ci_low": 9.67,
+      "ci_high": 9.71,
+      "overlays": [
+        "overlay_00_slice_046.png",
+        "overlay_01_slice_092.png",
+        "overlay_02_slice_139.png",
+        "overlay_03_slice_185.png",
+        "overlay_04_slice_231.png"
+      ]
+    }
+  ],
+  "overlay_urls": {
+    "overlay_00_slice_046.png": "overlays/overlay_00_slice_046.png",
+    "overlay_01_slice_092.png": "overlays/overlay_01_slice_092.png",
+    "overlay_02_slice_139.png": "overlays/overlay_02_slice_139.png",
+    "overlay_03_slice_185.png": "overlays/overlay_03_slice_185.png",
+    "overlay_04_slice_231.png": "overlays/overlay_04_slice_231.png"
+  }
+}
