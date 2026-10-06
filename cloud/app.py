@@ -39,7 +39,7 @@ from pipeline.log import get_logger, setup_logging  # noqa: E402
 setup_logging(os.environ.get("CTPIPE_LOG_LEVEL", "INFO"), "json")
 logger = get_logger("cloud.app")
 
-APP_VERSION = "1.0"
+APP_VERSION = "1.1"
 
 # Upload safety caps.
 MAX_ZIP_BYTES = 200 * 1024 * 1024  # compressed upload cap
@@ -189,10 +189,10 @@ class GcsStorage(Storage):
         self._blob(gcs_uri).download_to_filename(dest_path)
 
     def upload_file(self, src: str, gcs_uri: str, content_type: str | None = None) -> None:
-        blob = self._blob(gcs_uri)
-        if content_type:
-            blob.content_type = content_type
-        blob.upload_from_filename(src)
+        # Pass content_type explicitly: upload_from_filename defaults to
+        # text/plain, which GCS rejects when it differs from the metadata.
+        self._blob(gcs_uri).upload_from_filename(
+            src, content_type=content_type or "application/octet-stream")
 
     def read_json(self, gcs_uri: str) -> dict | None:
         from google.cloud.exceptions import NotFound
@@ -203,9 +203,10 @@ class GcsStorage(Storage):
             return None
 
     def write_json(self, gcs_uri: str, payload: dict) -> None:
-        blob = self._blob(gcs_uri)
-        blob.content_type = "application/json"
-        blob.upload_from_string(json.dumps(payload, indent=2))
+        # Pass content_type explicitly: upload_from_string defaults to
+        # text/plain, which GCS rejects when it differs from the metadata.
+        self._blob(gcs_uri).upload_from_string(
+            json.dumps(payload, indent=2), content_type="application/json")
 
     def signed_get_url(self, gcs_uri: str, expires_min: int) -> str:
         return self._sign(self._blob(gcs_uri), "GET", expires_min)
