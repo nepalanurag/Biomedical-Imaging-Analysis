@@ -88,6 +88,15 @@ var CLOUD_API = "https://ctpipe-cloud-cwvxq5kwiq-uc.a.run.app";
       if (!r.ok) throw new Error("no saved example");
       return r.json();
     }).then(function (d) {
+      // Overlay paths in the saved JSON are relative to the JSON file;
+      // resolve them against its location so they work from any page.
+      // Absolute (signed) URLs from live jobs pass through untouched.
+      var urls = d.overlay_urls || {};
+      Object.keys(urls).forEach(function (n) {
+        if (urls[n].indexOf("://") === -1 && urls[n].charAt(0) !== "/") {
+          urls[n] = "samples/cloud_example/" + urls[n];
+        }
+      });
       body.innerHTML =
         '<p class="note">Live uploads are currently switched off. Below is a real ' +
         'analysis of the example RICORD series, run end to end through this same ' +
