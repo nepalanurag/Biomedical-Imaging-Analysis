@@ -24,7 +24,7 @@ The app provides:
 
 - Step-by-step visualization of the segmentation workflow for a sample DICOM folder.
 - Interactive overlays for original, lung mask, and infection mask.
-- Patient data analysis with infection percentage distribution and top infected cases.
+- Patient data analysis with infection percentage distribution across subjects.
 
 ## DICOM ingestion pipeline
 
