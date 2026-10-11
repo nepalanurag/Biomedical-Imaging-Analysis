@@ -10,7 +10,7 @@ The full demo package (analysis and the site source) lives in [`web/`](web/).
 
 ## Features
 
-- **DICOM Series Reading and Processing**: Reads DICOM series, handles series details, and converts to ITK images.
+- **DICOM Series Reading and Processing**: Reads DICOM series and converts them to ITK images.
 - **COVID-19 Infection Segmentation**: Segments infected lung regions using Hounsfield Unit (HU) thresholds and morphological operations.
 - **Lung Segmentation**: Segments the entire lung region for accurate quantification.
 - **Infection Quantification**: Calculates the percentage of infected lung tissue.
@@ -30,7 +30,7 @@ The app provides:
 
 `pipeline/` is a production ingestion pipeline for the CT analysis above:
 DICOM → NIfTI + a versioned Parquet manifest, Pandera validation gates, a
-series-eligibility rule as code (axial diagnostic CT only — scout/localizer
+series-eligibility rule as code (axial diagnostic CT only; scout/localizer
 and reformatted series are quarantined, never silently dropped), and
 quantification using the fixed intersection-based infection metric as the
 single source of truth. It also ships two AI components: a VLM
