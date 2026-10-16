@@ -3,12 +3,20 @@ __pycache__/
 *.py[cod]
 *.egg-info/
 .venv/
+.venv-eval/
 venv/
 .pytest_cache/
 
 # DICOM ingestion pipeline outputs (DVC-tracked, not git-tracked)
 pipeline_data/
 .dvc/cache/
+
+# Large annotation files (download from TCIA, see README)
+MIDRC-RICORD-1a_annotations_labelgroup_all_2020-Dec-8.json
+annotations.zip
+
+# macOS metadata
+__MACOSX/
 
 # OS / editors
 .DS_Store

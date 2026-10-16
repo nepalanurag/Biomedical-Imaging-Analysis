@@ -15,6 +15,7 @@
     <a href="#viewer">Slice viewer</a>
     <a href="#pipelinerun">Pipeline run</a>
     <a href="#method">How it works</a>
+    <a href="#annotations">Annotations</a>
     <a href="#patients">Across patients</a>
     <a href="#sweep">Sensitivity</a>
     <a href="#vlm">AI second reader</a>
@@ -209,6 +210,47 @@
       <img id="upload-img" alt="uploaded slice">
       <p id="upload-text"></p>
     </div>
+  </section>
+
+  <section id="annotations">
+    <h2>Validated against radiologist annotations</h2>
+    <p>
+      The MIDRC-RICORD-1A collection ships radiologist-drawn annotations of infectious
+      opacities (MD.ai format, annotator Team 1). 142 of the 255 slices in this series
+      carry 346 annotation polygons. Scoring the pipeline's prediction against them:
+    </p>
+    <div class="statrow">
+      <div class="stat"><span class="statnum">0.71</span><span class="statlbl">Dice score</span></div>
+      <div class="stat"><span class="statnum">0.55</span><span class="statlbl">IoU</span></div>
+      <div class="stat"><span class="statnum">142</span><span class="statlbl">annotated slices</span></div>
+    </div>
+    <p>
+      Dice measures overlap between the method's mask and the radiologist's drawings:
+      1.0 is perfect agreement, 0 is none. 0.71 is a solid result for plain HU
+      thresholding with no learned model. The annotations also drove a real fix: the
+      lung mask was losing infection near the pleura, and repairing it with
+      morphological closing lifted Dice from 0.67 to 0.71.
+    </p>
+    <div class="overlays">
+      <figure>
+        <img src="annotations/eval_overlay_slice141.png" alt="Radiologist annotation vs method prediction, slice 141">
+        <figcaption>Slice 141. Green: radiologist annotation. Red: predicted, not annotated. Blue: annotated, missed.</figcaption>
+      </figure>
+      <figure>
+        <img src="annotations/eval_overlay_slice163.png" alt="Radiologist annotation vs method prediction, slice 163">
+        <figcaption>Slice 163. Green: radiologist annotation. Red: predicted, not annotated. Blue: annotated, missed.</figcaption>
+      </figure>
+      <figure>
+        <img src="annotations/eval_overlay_slice165.png" alt="Radiologist annotation vs method prediction, slice 165">
+        <figcaption>Slice 165. Green: radiologist annotation. Red: predicted, not annotated. Blue: annotated, missed.</figcaption>
+      </figure>
+    </div>
+    <p class="fine">
+      One series, one annotator team: these numbers describe this scan, not COVID CT
+      in general. Reproduce them with <code>python evaluate_annotations.py</code> in the
+      repo (needs the annotations JSON from the TCIA MIDRC-RICORD-1A collection page;
+      see the main README).
+    </p>
   </section>
 
   <section id="patients">

@@ -1,7 +1,7 @@
 """COVID CT segmentation reimplementation and quantification analysis.
 
 Reimplements the HU-threshold pipeline from the source project
-(nepalanurag/Biomedical-Imaging-Analysis, streamlit_app.py) with
+(nepalanurag/Biomedical-Imaging-Analysis, segmentation.py) with
 pydicom + numpy + scipy, because ITK is not installed here.
 
 Original parameters (kept):

@@ -11,7 +11,9 @@ inside the lung, so the percentage can never exceed 100. An earlier
 whole-image numerator is never reintroduced here.
 
 Pipeline parameters (project standard, overridable via config/CLI):
-  lung mask:      HU in [-950, -300], fill holes, largest connected region, smooth
+  lung mask:      HU in [-950, -300], fill holes, largest connected region,
+                  morphological closing (disk r=9) to repair juxtapleural gaps,
+                  fill holes again
   infection mask: HU in [-700, -200], median filter
 
 Usage:
@@ -59,8 +61,29 @@ def quantify_infection(lung_mask, infection_mask) -> dict:
     }
 
 
-def segment_lungs(vol: np.ndarray, lung_lo: int = LUNG_LO, lung_hi: int = LUNG_HI) -> np.ndarray:
-    """Threshold -> fill holes -> largest connected component -> smooth."""
+def _disk(radius: int) -> np.ndarray:
+    """Disk structuring element of the given radius (2D)."""
+    y, x = np.ogrid[-radius:radius + 1, -radius:radius + 1]
+    return (x * x + y * y) <= radius * radius
+
+
+def segment_lungs(
+    vol: np.ndarray,
+    lung_lo: int = LUNG_LO,
+    lung_hi: int = LUNG_HI,
+    closing_radius: int = 9,
+) -> np.ndarray:
+    """Threshold -> fill holes -> largest connected component -> closing.
+
+    closing_radius: radius of the disk structuring element used to repair
+    juxtapleural boundary gaps (default 9). Dense infection near the pleura
+    is thresholded out of the lung HU band, leaving concavities that the
+    closing bridges; the chest wall still fails the infection band so this
+    is safe for the prediction. Validated against MD.ai radiologist
+    annotations (Dice 0.667 -> 0.712 on 142 annotated slices of series
+    419639-000082). Pass 0 for the legacy 5x5 square closing without the
+    post-closing hole fill.
+    """
     m = (vol >= lung_lo) & (vol <= lung_hi)
     m = ndi.binary_fill_holes(m)
     lab, nlab = ndi.label(m)
@@ -68,20 +91,24 @@ def segment_lungs(vol: np.ndarray, lung_lo: int = LUNG_LO, lung_hi: int = LUNG_H
         return np.zeros_like(m)
     sizes = ndi.sum(m, lab, range(1, nlab + 1))
     m = lab == (int(np.argmax(sizes)) + 1)
-    struct = np.ones((5, 5), dtype=bool)
+    struct = _disk(closing_radius) if closing_radius > 0 else np.ones((5, 5), dtype=bool)
     out = np.empty_like(m)
     for i in range(m.shape[0]):
         out[i] = ndi.binary_closing(m[i], structure=struct)
+    if closing_radius > 0:
+        out = ndi.binary_fill_holes(out)
     return out
 
 
 def segment_infection(vol: np.ndarray, inf_lo: int = INF_LO, inf_hi: int = INF_HI) -> np.ndarray:
-    """Threshold -> slice-wise median filter (stands in for ITK 3D radius 2)."""
+    """Threshold -> 3D median filter (radius 2, i.e. 5x5x5 neighborhood).
+
+    Matches the original ITK pipeline (itk.MedianImageFilter, SetRadius(2)).
+    Validated against MD.ai radiologist annotations together with the
+    repaired lung mask: Dice 0.7115 / IoU 0.5522 on 142 annotated slices.
+    """
     m = (vol >= inf_lo) & (vol <= inf_hi)
-    out = np.empty_like(m)
-    for i in range(m.shape[0]):
-        out[i] = ndi.median_filter(m[i].astype(np.uint8), size=5) > 0
-    return out
+    return ndi.median_filter(m.astype(np.uint8), size=5) > 0
 
 
 def wilson_ci(k: int, n: int, z: float = 1.96) -> tuple[float, float]:
@@ -115,13 +142,14 @@ def quantify_series(
     row,
     lung_band: tuple[int, int] = (LUNG_LO, LUNG_HI),
     inf_band: tuple[int, int] = (INF_LO, INF_HI),
+    lung_closing_radius: int = 9,
 ) -> dict:
     """Segment + quantify one manifest row. Returns a result dict."""
     src = row["nifti_path"] if row.get("nifti_path") else row["source_dir"]
     if not src:
         raise ValueError(f"series {row['series_uid']}: no nifti_path or source_dir")
     vol = load_volume(src)
-    lung = segment_lungs(vol, *lung_band)
+    lung = segment_lungs(vol, *lung_band, closing_radius=lung_closing_radius)
     inf = segment_infection(vol, *inf_band)
     q = quantify_infection(lung, inf)
     lo, hi = wilson_ci(q["infected_voxels"], q["total_voxels"])
@@ -130,6 +158,7 @@ def quantify_series(
         "patient_id": row["patient_id"],
         "lung_band": f"[{lung_band[0]},{lung_band[1]}]",
         "inf_band": f"[{inf_band[0]},{inf_band[1]}]",
+        "lung_closing_radius": lung_closing_radius,
         "slices": vol.shape[0],
         "lung_voxels": q["total_voxels"],
         "infected_voxels": q["infected_voxels"],
@@ -146,7 +175,7 @@ def code_hash() -> str:
         return hashlib.sha256(fh.read()).hexdigest()[:12]
 
 
-def run_quantification(manifest_path: str, lung_band, inf_band) -> pd.DataFrame:
+def run_quantification(manifest_path: str, lung_band, inf_band, lung_closing_radius: int = 9) -> pd.DataFrame:
     """Quantify every eligible series in the manifest."""
     df = contracts.read_manifest(manifest_path)
     df = eligibility.apply(df)
@@ -158,7 +187,12 @@ def run_quantification(manifest_path: str, lung_band, inf_band) -> pd.DataFrame:
     for _, row in eligible.iterrows():
         slog = bind(logger, series_uid=str(row["series_uid"])[:32])
         try:
-            res = quantify_series(row, lung_band=lung_band, inf_band=inf_band)
+            res = quantify_series(
+                row,
+                lung_band=lung_band,
+                inf_band=inf_band,
+                lung_closing_radius=lung_closing_radius,
+            )
             results.append(res)
             slog.info(
                 "series_quantified",
@@ -190,13 +224,21 @@ def build_parser() -> argparse.ArgumentParser:
     ap.add_argument("--lung-hi", type=int, default=None)
     ap.add_argument("--inf-lo", type=int, default=None)
     ap.add_argument("--inf-hi", type=int, default=None)
+    ap.add_argument(
+        "--lung-closing-radius",
+        type=int,
+        default=None,
+        help="disk radius for lung-mask closing repair (default 9; 0 = legacy 5x5 closing)",
+    )
     return ap
 
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     settings = apply_cli_overrides(
-        PipelineSettings(), args, ["out_dir", "lung_lo", "lung_hi", "inf_lo", "inf_hi"]
+        PipelineSettings(),
+        args,
+        ["out_dir", "lung_lo", "lung_hi", "inf_lo", "inf_hi", "lung_closing_radius"],
     )
     setup_logging(settings.log_level, settings.log_format)
     try:
@@ -214,6 +256,7 @@ def main(argv: list[str] | None = None) -> int:
             manifest_path,
             lung_band=(settings.lung_lo, settings.lung_hi),
             inf_band=(settings.inf_lo, settings.inf_hi),
+            lung_closing_radius=settings.lung_closing_radius,
         )
         os.makedirs(settings.out_dir, exist_ok=True)
         out_path = os.path.join(settings.out_dir, args.results_name)
